@@ -1,7 +1,8 @@
 from io import TextIOWrapper
 import struct
+import time
 
-path = 'PA23_wuem_346_Nonplanar/test_stl_bin.stl' #Filename definition
+path = 'test_stl_ascii.stl' #Filename definition
 
 def openSTL(path: 'str'):
     file_path = path
@@ -24,7 +25,7 @@ def openSTL(path: 'str'):
         def __str__(self):
             return f'STL-Format error in line {self.line}. File ends unexpectedly. File does not comply with STL format standards.'
 
-    def checkAsciiSTL(file: 'TextIOWrapper'):
+    def checkParseAsciiSTL(file: 'TextIOWrapper'):
         linenr = 1
         file.seek(0)
         if file.readline().rsplit(' ')[0] != ('solid'):
@@ -33,7 +34,7 @@ def openSTL(path: 'str'):
         while True:
             line = " ".join(file.readline().strip().replace('\n','').replace('\t','').split()).rsplit(' ')
             if line == ['']:
-                raise STLEndingError('File ends abruptly in STL-Line ' + str(linenr))
+                raise STLEndingError(linenr)
             if line[0] == 'endsolid':
                 break
             linenr += 1
@@ -77,7 +78,7 @@ def openSTL(path: 'str'):
             if line[0:2] != ['endfacet']:
                 raise STLFormatError(linenr,'"endfacet"')
 
-    def checkBinSTL(file: 'TextIOWrapper'):
+    def checkParseBinSTL(file: 'TextIOWrapper'):
         file.seek(80)
         num_triangles = struct.unpack('<i',file.read(4))[0]
         file.read()
@@ -92,14 +93,14 @@ def openSTL(path: 'str'):
                 isAscii = True
                 bin_file.close()                #reopens File in ASCII read mode
                 ascii_file = open(file_path,'r')    #reopens File in ASCII read mode
-                checkAsciiSTL(ascii_file)
+                checkParseAsciiSTL(ascii_file)
                 ascii_file.close()
                 print('ASCII file valid at:', file_path)
                 return ascii_file
             else:
                 print('Found Binary File at:', file_path)
                 isBinary = True
-                checkBinSTL(bin_file)
+                checkParseBinSTL(bin_file)
                 print('Binary file valid at:', file_path)
                 bin_file.close()
         except OSError as e:
@@ -114,4 +115,9 @@ def openSTL(path: 'str'):
     else:
         print(file_path, 'is not an STL File')
 
+
+
+start = time.time()
 openSTL(path)
+end = time.time()
+print(end-start)
