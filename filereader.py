@@ -3,8 +3,12 @@ import struct
 import time
 import numpy as np
 
-path = 'test_stl_ascii.stl' #Filename definition
+path = 'Scheibe.stl' #Filename definition
 
+# Opens, verifies and parses a given stl-file
+#----------------------------------------
+# Input: STL-File path (string)
+# Output: Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
 def openSTL(path: 'str'):
     file_path = path
     class STLFormatError(Exception):
@@ -26,7 +30,7 @@ def openSTL(path: 'str'):
         def __str__(self):
             return f'STL-Format error in line {self.line}. File ends unexpectedly. File does not comply with STL format standards.'
 
-    def checkParseAsciiSTL(file: 'TextIOWrapper'):
+    def checkParseAsciiSTL(file: 'TextIOWrapper'): #validates and parses an ASCII-STL
 
         lines = 0
         curr_triangle = 1
@@ -91,15 +95,14 @@ def openSTL(path: 'str'):
             curr_triangle += 1
         return triangles
 
-    def checkParseBinSTL(file: 'TextIOWrapper'):
-        file.seek(80)
-        num_triangles = struct.unpack('<i',file.read(4))[0]
+    def checkParseBinSTL(file: 'TextIOWrapper'): #validates and parses a Binary-STL
+        file.seek(80) 
+        num_triangles = struct.unpack('<i',file.read(4))[0] #reads the 32bit int stating the number of triangles 
         file.read()
-        if file.tell() != (80+4+50*num_triangles):
+        if file.tell() != (80+4+50*num_triangles): #if the file length doesnt match up with the specified number of triangles, raises an error
             raise STLFormatError(-1)
-        file.seek(0)
-        triangles = np.fromfile(file,dtype=[('TriangleData','12<f4'),('AttributeByteCount','<u2')],offset=84)['TriangleData'].astype(float)
-        print(triangles[:,2])
+        file.seek(0) #resets the file position
+        triangles = np.fromfile(file,dtype=[('TriangleData','12<f4'),('AttributeByteCount','<u2')],offset=84)['TriangleData'].astype(float) #parsing the stl file via numpy, getting rid of Attribute Byte Count
         return triangles
 
 
@@ -137,6 +140,15 @@ def openSTL(path: 'str'):
 
 
 start = time.time()
-openSTL(path)
+stl1test = openSTL(path)
 end = time.time()
-print(end-start)
+print('ASCII time:', end-start)
+
+path2 = 'Scheibe_bin.stl'
+start = time.time()
+stl2test = openSTL(path2)
+end = time.time()
+print('Binary time:', end-start)
+
+if(np.array_equal(stl1test,stl1test)):
+    print("Equal")
