@@ -2,8 +2,12 @@ from io import TextIOWrapper
 import struct
 import time
 import numpy as np
+import mmap
+import re
 
-path = 'Scheibe.stl' #Filename definition
+path_stl_ascii = 'Scheibe.stl' #Filename definition
+path_gcode = 'Scheibe.gcode' #filename definition
+path_stl_bin = 'Scheibe_bin.stl' #filename definition
 
 # Opens, verifies and parses a given stl-file
 #----------------------------------------
@@ -32,10 +36,13 @@ def openSTL(path: 'str'):
 
     def checkParseAsciiSTL(file: 'TextIOWrapper'): #validates and parses an ASCII-STL
 
+        start_ = time.time()
         lines = 0
         curr_triangle = 1
         for line in file:
             lines += 1
+        end_ = time.time()
+        print('Line counting: ',end_-start_)
 
         num_triangles = int((lines-2)/7)
 
@@ -134,21 +141,75 @@ def openSTL(path: 'str'):
         except Exception as e:
             print('Unexpected Error while reading file')
             print(e)
+        finally:
+            bin_file.close()
     else:
         print(file_path, 'is not an STL File')
 
 
 
-start = time.time()
-stl1test = openSTL(path)
-end = time.time()
-print('ASCII time:', end-start)
+# Opens, verifies and parses a given GCODE-file
+#----------------------------------------
+# Input: GCODE-File path (string)
+# Output: Numpy array of shape [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
+def openGCODE(path: 'str',mode='mmap'):
 
-path2 = 'Scheibe_bin.stl'
-start = time.time()
-stl2test = openSTL(path2)
-end = time.time()
-print('Binary time:', end-start)
+    with open(path,'r') as file:
+        start_ = time.time()
+        lines = 0
+        for line in file:
+            lines += 1
+        end_ = time.time()
+    gcode_arr = np.zeros(lines,dtype=[('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')])
 
-if(np.array_equal(stl1test,stl1test)):
-    print("Equal")
+    if (mode=='mmap'):
+        start = time.time()
+        with open(path,'r') as f:  #opening file with context manager
+            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+                line_list = mm.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
+                move_line_nr = 0
+                while(not (line_list[0:2] == [b'M73',b'P100'])): #waits until the printing is complete
+                    line_list = mm.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
+                    if line_list[0] == b'G1':  
+                        line_arr = np.zeros(1,dtype=[('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')])
+                        for single_inst in line_list[1:]:
+                            gcode_arr[move_line_nr][chr(single_inst[0])] = single_inst[1:]
+                        move_line_nr += 1
+        gcode_arr = np.resize(gcode_arr,move_line_nr)   
+        end = time.time()
+        print('Memory Mapped:',end-start)
+        return gcode_arr
+
+    if (mode=='manual'):
+        start = time.time()
+        with open(path,'rb') as f:  #opening file with context manager
+            line_list = f.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
+            move_line_nr = 0
+            while(not (line_list[0:2] == [b'M73',b'P100'])): #waits until the printing is complete
+                line_list = f.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
+                if line_list[0] == b'G1':  
+                    line_arr = np.zeros(1,dtype=[('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')])
+                    for single_inst in line_list[1:]:
+                        gcode_arr[move_line_nr][chr(single_inst[0])] = single_inst[1:]
+                    move_line_nr += 1
+        gcode_arr = np.resize(gcode_arr,move_line_nr)    
+        end = time.time()
+        print('Normal Read:',end-start)
+
+    if (mode !='mmap' and mode !='manual'):
+        raise ValueError("Unsupported parsing mode '"+mode+"'. Use 'mmap' or 'manual'.")
+
+if __name__ == "__main__":
+    #Testing Code:
+    """
+    start = time.time()
+    stl1test = openSTL(path_stl_ascii)
+    end = time.time()
+    print('ASCII time:', end-start)
+
+    start = time.time()
+    stl2test = openSTL(path_stl_bin)
+    end = time.time()
+    print('Binary time:', end-start)
+    """
+    openGCODE(path_gcode)
