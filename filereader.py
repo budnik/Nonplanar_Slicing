@@ -160,40 +160,49 @@ def writeSTL(triangles: 'np.ndarray[np.float]'):
     file.close()
     return path
 
+# recognizes the outline of a flat stl-surface
+# ----------------------------------------
+# Input: Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the base of an STL or a whole STL 
+# Output: Numpy array of shape [NUMBER_TRIANGLES,12 with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the newly generated block STL that is flat and has height z_mean
 def genBlock(stl_triangles: 'np.ndarray[np.float]', z_mean: 'np.float'):
-    testarr = ~np.bitwise_and.reduce((np.isclose(stl_triangles[:,5::3],np.zeros_like(stl_triangles[:,5::3]),1e-17)),axis=1)
-    base_triangles = np.delete(stl_triangles,testarr,axis=0)
-    midpoints = np.zeros((len(base_triangles[:,0]),9))
-    midpoints[:,0:3] = (base_triangles[:,3:6] + base_triangles[:,6:9])/2
-    midpoints[:,3:6] = (base_triangles[:,6:9] + base_triangles[:,9:12])/2
-    midpoints[:,6:9] = (base_triangles[:,3:6] + base_triangles[:,9:12])/2
-    midpoints = midpoints.reshape(-1,3)
-    midpoints_ = np.unique(midpoints,return_index=True,axis=0,return_counts=True)
-    midpoints_ = np.asarray(midpoints_[1:]).T
-    unique_idx = np.zeros(len(midpoints[:,0]))
-    midpoints_[:,1] = ((midpoints_[:,1])-2)*-1
-    unique_idx[midpoints_[:,0]] = midpoints_[:,1]
-    unique_idx = unique_idx.reshape(-1,3)
-    keep_idx = np.repeat(np.concatenate((np.logical_or(unique_idx[:,0],unique_idx[:,2]).reshape(-1,1),np.logical_or(unique_idx[:,0],unique_idx[:,1]).reshape(-1,1),np.logical_or(unique_idx[:,1],unique_idx[:,2]).reshape(-1,1)),axis=1),3,axis=1)
-    outpoints = (base_triangles[:,3:])[keep_idx].reshape(-1,3)
-    #outpoints = np.repeat(outpoints,2,axis=0)
-    #outpoints[0:2:,2] = z_mean
-    return outpoints
+    testarr = ~np.bitwise_and.reduce((np.isclose(stl_triangles[:,5::3],np.zeros_like(stl_triangles[:,5::3]),1e-17)),axis=1) #detects lines where z is sufficiently close to 0
+    base_triangles = np.delete(stl_triangles,testarr,axis=0) #gets rid of all lines where z is not within a specified tolerance to 0
+    top_triangles = base_triangles.copy()
+    top_triangles[:,2] *= -1
+    base_triangles[:,[5,8,11]] = 0
+    top_triangles[:,[5,8,11]] = z_mean
 
+    triangles_check = np.concatenate((base_triangles[:,[3,4,6,7]],base_triangles[:,[6,7,9,10]],base_triangles[:,[3,4,9,10]]),axis=0)
+    triangles_check = np.concatenate((triangles_check,triangles_check[:, [2, 3, 0, 1]]))
 
-def showTRI(points):
-    tri = Delaunay(points,incremental=True)
-    plt.triplot(points[:,0], points[:,1], tri.simplices)
-    plt.plot(points[:,0], points[:,1], 'o')
-    plt.show()
+    uniq,idx,count= np.unique(triangles_check,return_index=True,return_counts=True,axis=0)
+    count = count[idx.argsort()]
+    uniq = uniq[idx.argsort()]
+    uniq = uniq[np.logical_not((count-1).astype(bool))]
+    uniq = uniq[:len(uniq)//2]
+    sides = np.zeros((2*len(uniq[:,0]),12))
+    sides[:,11] = z_mean
+    sides[len(uniq[:,0]):,8] = z_mean
+    sides[len(uniq[:,0]):,[3,4,6,7]] = uniq
+    sides[len(uniq[:,0]):,[9,10]] = uniq[:,0:2]
+    sides[:len(uniq[:,0]),[6,7,9,10]] = uniq
+    sides[:len(uniq[:,0]),[3,4]] = uniq[:,2:]
+    flat_stl = np.concatenate((base_triangles,top_triangles,sides),axis=0)
+    flat_stl[:,0:3] = 0
+    return flat_stl
+    #return uniq, triangles_check
 
+# Opens, verifies and parses a given stl-file
+# ----------------------------------------
+# Input: STL-File path (string)
+# Output: None
 def openSTL_lib(path):
     your_mesh = mesh.Mesh.from_file(path)
 
 # Opens, verifies and parses a given GCODE-file
 # ----------------------------------------
 # Input: GCODE-File path (string), reading mode (mmap, manual, None) 
-# Output: Numpy array of shape [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
+# Output: [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
 def openGCODE(path: 'str',mode='mmap'):
 
     with open(path,'r') as file: # checks length of file to estimate array size to allocate
@@ -271,11 +280,11 @@ if __name__ == "__main__":
     end = time.time()
     print('Normal file handling time:', end-start, 's')
 
-    stl_triangles = openSTL('test_pa_outline_fein_1.stl')
+    stl_triangles = openSTL('test_pa_outline_fein_2.stl')
     start = time.time()
-    points = genBlock(stl_triangles,0.1)
+    flat_points = genBlock(stl_triangles,10)
     end = time.time()
-    showTRI(points[:,0:2])
+    writeSTL(flat_points)
     print('Baseline handling time:', end-start, 's')
     
     
