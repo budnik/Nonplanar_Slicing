@@ -115,19 +115,19 @@ def openSTL(path: 'str'):
         try:
             bin_file = open(file_path,'rb') #opens File in Binary-Read-Mode
             if (bin_file.read(6).decode('ascii')) == ('solid '): #if it starts with 'solid ' it is most likely an ASCII format STL File
-                #print('Found ASCII File at:', file_path)
+                print('Found ASCII File at:', file_path)
                 #isAscii = True
                 bin_file.close()                #reopens File in ASCII read mode
                 ascii_file = open(file_path,'r')    #reopens File in ASCII read mode
                 triangles = checkParseAsciiSTL(ascii_file)
                 ascii_file.close()
-                #print('ASCII file valid at:', file_path)
+                print('ASCII file valid at:', file_path)
                 return triangles
             else:
-                #print('Found Binary File at:', file_path)
+                print('Found Binary File at:', file_path)
                 #isBinary = True
                 triangles = checkParseBinSTL(bin_file)
-                #print('Binary file valid at:', file_path)
+                print('Binary file valid at:', file_path)
                 bin_file.close()
                 return triangles
         except OSError as e:
@@ -158,6 +158,7 @@ def writeSTL(triangles: 'np.ndarray[np.float]'):
         file.write(struct.pack('<12f',*triangle))
         file.write(b'  ')
     file.close()
+    print('Written', num_triangles,'triangles')
     return path
 
 # recognizes the outline of a flat stl-surface
@@ -165,6 +166,8 @@ def writeSTL(triangles: 'np.ndarray[np.float]'):
 # Input: Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the base of an STL or a whole STL 
 # Output: Numpy array of shape [NUMBER_TRIANGLES,12 with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the newly generated block STL that is flat and has height z_mean
 def genBlock(stl_triangles: 'np.ndarray[np.float]', z_mean: 'np.float'):
+    #z_min = np.min(stl_triangles[:,[5,8,11]])
+    #stl_triangles[:,[5,8,11]] -= z_min
     testarr = ~np.bitwise_and.reduce((np.isclose(stl_triangles[:,5::3],np.zeros_like(stl_triangles[:,5::3]),1e-17)),axis=1) #detects lines where z is sufficiently close to 0
     base_triangles = np.delete(stl_triangles,testarr,axis=0) #gets rid of all lines where z is not within a specified tolerance to 0
     top_triangles = base_triangles.copy()
@@ -189,6 +192,7 @@ def genBlock(stl_triangles: 'np.ndarray[np.float]', z_mean: 'np.float'):
     sides[:len(uniq[:,0]),[3,4]] = uniq[:,2:]
     flat_stl = np.concatenate((base_triangles,top_triangles,sides),axis=0)
     flat_stl[:,0:3] = 0
+    print('Generated Block STL Data with', len(flat_stl[:,0]), 'triangles')
     return flat_stl
     #return uniq, triangles_check
 
