@@ -1,6 +1,7 @@
 # This file creates a Mesh for the top Surface of the stl File
 from scipy.interpolate import griddata
 import numpy as np
+from numpy import linalg
 from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
 import matplotlib.pyplot as plt
 
@@ -46,6 +47,33 @@ def interpolate_grid(points_to_interpolate, reference_points, method_interpol = 
     return z_interpol
 
 
+## Input:   surface_data                -> the given surface points with shape = [n,3] and the 3 column are (x,y,z)
+
+## Use:     once calculation of the gradient for extrusion compensation
+
+## Output:  
+    
+    
+def create_gradient(surface_data):
+   
+    x_min = np.min(surface_data[:,0])
+    x_max = np.max(surface_data[:,0])
+    y_min = np.min(surface_data[:,1])
+    y_max = np.max(surface_data[:,1])
+    z_min = np.min(surface_data[:,2])
+    z_max = np.max(surface_data[:,2])
+   
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.1), np.arange(round(y_min, 1), round(y_max, 1), 0.1))
+
+    # Verwende griddata für die Interpolation
+    Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
+
+    # Berechne die Gradienten
+    GradX, GradY = np.gradient(Zmesh)
+    GradZ = np.sqrt(GradX**2 + GradY**2)
+    GradZ[np.isnan(GradZ)] = 0
+    return Xmesh, Ymesh, GradZ
+
 ## Input:  Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
 
 ## Use:    Calculates the 2d outline from an object
@@ -56,16 +84,17 @@ def interpolate_grid(points_to_interpolate, reference_points, method_interpol = 
 
     
 def outline_detect(stl_triangles):
-    
+    # set z values to 0 from all points
     stl_triangles[:, [5, 8, 11]] = 0
-    
+    # Connect all Points to one big Array with shape [n,3]
     reduced_array = np.concatenate([stl_triangles[:, 3:5], stl_triangles[:, 6:8], stl_triangles[:, 9:11]], axis=0)
-
+    # delete all points that are more than once in the array
     points = np.unique(reduced_array, axis=0)
-    print(points.shape)
-    
+    # create a convex hull with the given points
     hull = ConvexHull(points)
-    convex_hull_plot_2d(hull)   # just to visualize the convex shape that is created
+    # visualize the current outline detection -> uncomment later if anoying!
+    #convex_hull_plot_2d(hull)   # just to visualize the convex shape that is created
+    # return 2 vectors with the x and y values of the detected outline
     return points[hull.vertices,0], points[hull.vertices,1]
 
 
