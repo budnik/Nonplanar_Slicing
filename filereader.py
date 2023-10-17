@@ -5,7 +5,7 @@ import time
 import numpy as np
 import mmap
 import os
-from stl import mesh
+#from stl import mesh
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 
@@ -200,8 +200,8 @@ def genBlock(stl_triangles: 'np.ndarray[np.float]', z_mean: 'np.float'):
 # ----------------------------------------
 # Input: STL-File path (string)
 # Output: None
-def openSTL_lib(path):
-    your_mesh = mesh.Mesh.from_file(path)
+#def openSTL_lib(path):
+#    your_mesh = mesh.Mesh.from_file(path)
 
 # Opens, verifies and parses a given GCODE-file
 # ----------------------------------------
@@ -254,41 +254,40 @@ if __name__ == "__main__":
     path_gcode = 'Scheibe.gcode' #filename definition
     path_stl_bin = 'Scheibe_bin.stl' #filename definition
 
-    start = time.time()
-    openSTL(path_stl_ascii)
-    end = time.time()
-    print('ASCII time:', end-start, 's')
+#    start = time.time()
+#    openSTL(path_stl_ascii)
+#    end = time.time()
+#    print('ASCII time:', end-start, 's')
 
-    start = time.time()
-    openSTL_lib(path_stl_ascii)
-    end = time.time()
-    print('ASCII library time:', end-start, 's')
+#    start = time.time()
+#    openSTL_lib(path_stl_ascii)
+#    end = time.time()
+#    print('ASCII library time:', end-start, 's')
 
-    start = time.time()
-    openSTL(path_stl_bin)
-    end = time.time()
-    print('Binary time:', end-start, 's')
+#    start = time.time()
+#    openSTL(path_stl_bin)
+#    end = time.time()
+#    print('Binary time:', end-start, 's')
 
-    start = time.time()
-    openSTL_lib(path_stl_bin)
-    end = time.time()
-    print('Binary library time:', end-start, 's')
+#    start = time.time()
+#    openSTL_lib(path_stl_bin)
+#    end = time.time()
+#    print('Binary library time:', end-start, 's')
 
     start = time.time()
     openGCODE(path_gcode,mode='mmap')
     end = time.time()
     print('Memory mapped time:', end-start, 's')
 
-    start = time.time()
-    openGCODE(path_gcode,mode='manual')
-    end = time.time()
-    print('Normal file handling time:', end-start, 's')
 
-    stl_triangles = openSTL('test_pa_outline_fein_2.stl')
-    start = time.time()
-    flat_points = genBlock(stl_triangles,10)
-    end = time.time()
-    writeSTL(flat_points)
-    print('Baseline handling time:', end-start, 's')
-    
-    
+#    start = time.time()
+#    openGCODE(path_gcode,mode='manual')
+#    end = time.time()
+#    print('Normal file handling time:', end-start, 's')
+
+#    stl_triangles = openSTL('test_pa_outline_fein_2.stl')
+#    start = time.time()
+#    flat_points = genBlock(stl_triangles,10)
+#    end = time.time()
+#    writeSTL(flat_points)
+#    print('Baseline handling time:', end-start, 's')
