@@ -9,6 +9,8 @@ import os
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 
+gcode_dtype = np.dtype([('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
+
 # Opens, verifies and parses a given stl-file
 # ----------------------------------------
 # Input: STL-File path (string)
@@ -220,13 +222,19 @@ def openGCODE(path: 'str',mode='mmap'):
                 line_list = []
                 line_nr = 0 
                 while line_nr<lines:
-                    line_list = mm.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ') #reads next line and gets rid of extra characters and comments, puts it in a list
+                    splitline = mm.readline().replace(b'\n',b'').split(b';')
+                    line_list = splitline[0].strip().split(b' ')
+                    comment = splitline[1:]
                     if line_list[0] == b'G1':  #if the current line is a moving line
                         gcode_arr[line_nr]['Instruction'] = 'G1'
                         for single_inst in line_list[1:]: #for loop through the entries of every line
                             gcode_arr[line_nr][chr(single_inst[0])] = single_inst[1:] #puts it in the corresponding field
                     else:
                         gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list)).decode('utf-8')
+                    if(comment):
+                        if(comment[0].startswith(b'TYPE')):
+                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                        
                     line_nr += 1 #counts actual amount of moving lines
         return gcode_arr
 
@@ -248,26 +256,27 @@ def openGCODE(path: 'str',mode='mmap'):
     if (mode !='mmap' and mode !='manual'):
         raise ValueError("Unsupported parsing mode '"+mode+"'. Use 'mmap' or 'manual'.")
 
+
 # Testing Code:
 if __name__ == "__main__":     
     path_stl_ascii = 'Scheibe.stl' #Filename definition
-    path_gcode = 'Scheibe.gcode' #filename definition
+    path_gcode = 'test_files/Scheibe.gcode' #filename definition
     path_stl_bin = 'Scheibe_bin.stl' #filename definition
 
-#    start = time.time()
-#    openSTL(path_stl_ascii)
-#    end = time.time()
-#    print('ASCII time:', end-start, 's')
+    start = time.time()
+    openSTL(path_stl_ascii)
+    end = time.time()
+    print('ASCII time:', end-start, 's')
 
 #    start = time.time()
 #    openSTL_lib(path_stl_ascii)
 #    end = time.time()
 #    print('ASCII library time:', end-start, 's')
 
-#    start = time.time()
-#    openSTL(path_stl_bin)
-#    end = time.time()
-#    print('Binary time:', end-start, 's')
+    start = time.time()
+    openSTL(path_stl_bin)
+    end = time.time()
+    print('Binary time:', end-start, 's')
 
 #    start = time.time()
 #    openSTL_lib(path_stl_bin)
@@ -280,14 +289,14 @@ if __name__ == "__main__":
     print('Memory mapped time:', end-start, 's')
 
 
-#    start = time.time()
-#    openGCODE(path_gcode,mode='manual')
-#    end = time.time()
-#    print('Normal file handling time:', end-start, 's')
+    start = time.time()
+    openGCODE(path_gcode,mode='manual')
+    end = time.time()
+    print('Normal file handling time:', end-start, 's')
 
-#    stl_triangles = openSTL('test_pa_outline_fein_2.stl')
-#    start = time.time()
-#    flat_points = genBlock(stl_triangles,10)
-#    end = time.time()
-#    writeSTL(flat_points)
-#    print('Baseline handling time:', end-start, 's')
+    stl_triangles = openSTL('test_pa_outline_fein_2.stl')
+    start = time.time()
+    flat_points = genBlock(stl_triangles,10)
+    end = time.time()
+    writeSTL(flat_points)
+    print('Baseline handling time:', end-start, 's')
