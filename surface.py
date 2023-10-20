@@ -98,7 +98,14 @@ def outline_detect(stl_triangles):
     return points[hull.vertices,0], points[hull.vertices,1]
 
 
-# Testwise to see, if its possible to create the surface with the array and call griddata once instead of calling it every partial code
+
+## Input:   surface_data            -> the given datapoints of the Surface [n, (x,y,z)]
+#           resolution              -> in mm how big the steps for the surface reference array should be
+
+## Use:     Creates an Array in (resolution) mm steps to reduce the time calculating the interpolation for the surface
+
+## Output:  gives the interpolated Zmesh for the corresponding points in the array
+
 def create_surface_array(surface_data, resolution):
     x_min = np.min(surface_data[:,0])
     x_max = np.max(surface_data[:,0])
@@ -110,7 +117,7 @@ def create_surface_array(surface_data, resolution):
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), resolution), np.arange(round(y_min, 1), round(y_max, 1), resolution))
 
     # Verwende griddata für die Interpolation
-    Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='linear')
+    Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
     
     return Zmesh
 

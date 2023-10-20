@@ -48,19 +48,20 @@ def trans_gcode(orig_gcode, surface_array):
     numfulllayer = fullbottomlayer + fulltoplayer
     numvariablelayer = maxlayernum - numfulllayer
     
+    print("Transformation Progress running...")
+    
     for i in range(0, numline):         # Loop over every Line in the original GCode
         
         #Overview how long it will take :)
         still_G1_line = False
-        mod_i = i % 500
+        teiler = np.round((numline / 10),0)
+        mod_i = i % teiler
         if mod_i == 0:
-            print("Prozent: ", i, "/", numline)
+            procent = np.round(i / numline * 100, 0)
             
-        if i == 4255:
-            donothing = False
-            doonce = False
-        
-        
+            print("Progress: ", procent, "%")
+            
+            
         # General Code
         if orig_gcode["Instruction"][i] == "G1":
             
@@ -81,7 +82,7 @@ def trans_gcode(orig_gcode, surface_array):
                 z = z_old
             
             # Main calculation if its a valid linear movement of the print itself
-            valid_line = (np.isnan(x) == False) and (np.isnan(x) == False) and (np.isnan(e) == False)
+            valid_line = (np.isnan(x) == False) and (np.isnan(y) == False) and (np.isnan(e) == False)
             if valid_line:
                 
                 #calculate layerheight

@@ -16,3 +16,8 @@ if __name__ == "__main__":
     orig_gcode = fr.openGCODE(orig_gcode_path)
     gc1.trans_gcode(orig_gcode, filtered_surface)
     os.remove(temp_stl_path)
+    
+    
+    
+    # tbd -> min, max und Offset des stl's sollte irgendwo uebergeben werden -> für gcode_transform_1.py
+    #       -> sonst gibts index error, da das Array auf zu kleine min und max werte geht...
