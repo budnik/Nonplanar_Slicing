@@ -63,7 +63,7 @@ def create_gradient(surface_data):
     z_min = np.min(surface_data[:,2])
     z_max = np.max(surface_data[:,2])
    
-    Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.1), np.arange(round(y_min, 1), round(y_max, 1), 0.1))
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.5), np.arange(round(y_min, 1), round(y_max, 1), 0.5))
 
     # Verwende griddata für die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
@@ -96,5 +96,23 @@ def outline_detect(stl_triangles):
     #convex_hull_plot_2d(hull)   # just to visualize the convex shape that is created
     # return 2 vectors with the x and y values of the detected outline
     return points[hull.vertices,0], points[hull.vertices,1]
+
+
+# Testwise to see, if its possible to create the surface with the array and call griddata once instead of calling it every partial code
+def create_surface_array(surface_data, resolution):
+    x_min = np.min(surface_data[:,0])
+    x_max = np.max(surface_data[:,0])
+    y_min = np.min(surface_data[:,1])
+    y_max = np.max(surface_data[:,1])
+    z_min = np.min(surface_data[:,2])
+    z_max = np.max(surface_data[:,2])
+   
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), resolution), np.arange(round(y_min, 1), round(y_max, 1), resolution))
+
+    # Verwende griddata für die Interpolation
+    Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='linear')
+    
+    return Zmesh
+
 
 

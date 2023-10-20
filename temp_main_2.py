@@ -1,39 +1,19 @@
 import filereader
 import numpy as np
+import surface
+import gcode_transformation
 
+stl_pfad = "Welle.stl"
+triangle_array = filereader.openSTL(stl_pfad)
+Oberflaeche = surface.create_surface(triangle_array, np.pi / 3) # Winkel
 
-path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/Scheibe.gcode"
+path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/test_files/Scheibe_line.gcode"
 gcode_raw = filereader.openGCODE(path_gcode)
-"""
-print(gcode_raw.shape[0])
-print(gcode_raw.dtype)
-print(gcode_raw["X"])
-"""
-my_list = []
+gcode_transformation.trans_gcode(gcode_raw, Oberflaeche)
 
-# Vektoren erstellen und zur Liste hinzufgen
-vector_X = [1.0, 2.0, 3.0]
-vector_Y = [4.0, 5.0, 6.0]
-vector_Z = [7.0, 8.0, 9.0]
-vector_E = [10.0, 11.0, 12.0]
-vector_F = [13, 14, 15]
+# -> x, y und z vektoren mit den zugehoerigen e und f- Werten in ein Array schreiben
+# -> Offset des GCodes erkennen, resp. bei X und Y = 0 slicen?
+# -> jeder G1 Code separat mit griddata dauert zu lange -> ganze Schicht zusammen in Griddata
+# -> Alle Daten in np Array speichern fuer performance
+# -> 
 
-my_list.append((vector_X, vector_Y, vector_Z, vector_E, vector_F))
-
-# Einen weiteren Satz von Vektoren hinzufen
-vector_X = [16.0, 17.0, 18.0]
-vector_Y = [19.0, 20.0, 21.0]
-vector_Z = [22.0, 23.0, 24.0]
-vector_E = [25.0, 26.0, 27.0]
-vector_F = [28, 29, 30]
-
-my_list.append((vector_X, vector_Y, vector_Z, vector_E, vector_F))
-
-# Die Liste in ein NumPy-Array umwandeln
-dtype = [('X', '<f8'), ('Y', '<f8'), ('Z', '<f8'), ('E', '<f8'), ('F', '<i4')]
-
-my_array = np.array(my_list, dtype=dtype)
-print(my_array)
-
-    
-    
