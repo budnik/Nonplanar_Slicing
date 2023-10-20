@@ -1,6 +1,5 @@
 import surface
 import numpy as np
-from numpy.lib.recfunctions import unstructured_to_structured, structured_to_unstructured
 
 
 # Resample and calculate the transformed GCode according to the surface
@@ -14,7 +13,7 @@ def trans_gcode(orig_gcode, surface_array):
     fulltoplayer = 4
     maxlayernum = 25
     layerheight = 0.2
-    resolution = 0.01
+    resolution = 0.05
     
     gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array)
     
@@ -22,7 +21,7 @@ def trans_gcode(orig_gcode, surface_array):
 
     section_arr = np.zeros((0, 4))      # Array for calculating the G1 Line sectionwise -> [x, y, z, e]
     
-    file = open('test_Output.gcode', 'w')
+    file = open('nonplanar.gcode', 'w')
     
     x = 0
     y = 0
@@ -159,7 +158,7 @@ def trans_gcode(orig_gcode, surface_array):
             
             if layernum > fullbottomlayer:
                 
-                section_arr[:,3] = section_arr[:,3] * (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int), np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)]**1.5))
+                section_arr[:,3] = section_arr[:,3] * (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
             format = 'G1 X%.3f Y%.3f Z%.4f E%.4f'
             np.savetxt(file, section_arr, fmt = format)
             #clear out the written array
