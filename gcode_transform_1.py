@@ -6,20 +6,20 @@ import numpy as np
 #----------------------------------------------------------------------
 # Input: Gcode in Arrayform and surface from surface module
 #        Computed Surface Array from surface.py
-# Output: List of Strings with new Gcode instruction
+# Output: File in the explorer with the transformed Gcode
 
 def trans_gcode(orig_gcode, surface_array):
     fullbottomlayer = 4
     fulltoplayer = 4
     maxlayernum = 25
     layerheight = 0.2
-    resolution = 0.05
+    resolution = 0.1
     
     gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array)
     
     zmesh = surface.create_surface_array(surface_array, resolution)
 
-    section_arr = np.zeros((0, 4))      # Array for calculating the G1 Line sectionwise -> [x, y, z, e]
+    section_arr = np.zeros((0, 5))      # Array for calculating the G1 Line sectionwise -> [x, y, z, e, f]
     
     file = open('nonplanar.gcode', 'w')
     
@@ -61,7 +61,8 @@ def trans_gcode(orig_gcode, surface_array):
             
             print("Progress: ", procent, "%")
             
-            
+        if i == 18409:
+            stop_here = True  
         # General Code
         if orig_gcode["Instruction"][i] == "G1":
             
@@ -82,7 +83,7 @@ def trans_gcode(orig_gcode, surface_array):
                 z = z_old
             
             # Main calculation if its a valid linear movement of the print itself
-            valid_line = (np.isnan(x) == False) and (np.isnan(y) == False) and (np.isnan(e) == False)
+            valid_line = (np.isnan(x) == False) and (np.isnan(y) == False) and ((np.isnan(e) == False) or (np.isnan(f) == False))
             if valid_line:
                 
                 #calculate layerheight
@@ -103,22 +104,23 @@ def trans_gcode(orig_gcode, surface_array):
                     y_new = np.round(y_old + (y-y_old)/length * j, 3)
                     #z_new = z_old + (z-z_old)/length * j
                     
-                    temp_actual_g_line = np.zeros((x_new.shape[0], 4))
+                    temp_actual_g_line = np.zeros((x_new.shape[0], 5))
                     temp_actual_g_line[:, 0] = x_new[:]
                     temp_actual_g_line[:, 1] = y_new[:]
                     section_arr = np.concatenate((section_arr, temp_actual_g_line), axis=0)
                     
                      
-                     
-                    
                 else: # the G1 stays because it is the bottom layer, so just add the Line
-                    #new_array += [f"{G1_str}{x_str}{x}{y_str}{y}{e_str}{e}"]
-                    file.write(f"G1 X{orig_gcode['X'][i]} Y{orig_gcode['Y'][i]} E{orig_gcode['E'][i]}\n")
+                    if np.isnan(e) == False:
+                        file.write(f"G1 X{orig_gcode['X'][i]} Y{orig_gcode['Y'][i]} E{orig_gcode['E'][i]}\n")
+                    
+                    if np.isnan(f) == False:
+                        file.write(f"G1 X{orig_gcode['X'][i]} Y{orig_gcode['Y'][i]} F{orig_gcode['F'][i]}\n")
                     
                     
                     
             else:     # If this "else" is called, it is a G1 Line, but not one with X, Y and E movement and gets directly stored
-                              
+                          
                 add_str = G1_str
                 if (np.isnan(x) == False):
                     add_str = add_str + x_str +str(x)
@@ -130,25 +132,26 @@ def trans_gcode(orig_gcode, surface_array):
                     add_str = add_str + e_str +str(e)
                 if (np.isnan(f) == False):
                     add_str = add_str + f_str +str(f)
+                    
                                 
                 file.write(add_str  + '\n')
 
 
         else:       # If the "else" is called, the line should be copied as it is at the current line
             file.write(orig_gcode["Instruction"][i] + '\n') 
-            #new_array.append(orig_gcode["Instruction"][i])
         
         if (still_G1_line == False) and (length != 0) and valid_line:
             
             # interpolate the temp saved x and y values
-            xy_new_coord = np.concatenate([[section_arr[:,0]-x_offset], [section_arr[:,1]-y_offset]]).T
+            #xy_new_coord = np.concatenate([[section_arr[:,0]-x_offset], [section_arr[:,1]-y_offset]]).T
             #interpol_z = np.ones((xy_new_coord.shape[0],))
             #interpol_z = surface.interpolate_grid(xy_new_coord, surface_array)
             interpol_z = zmesh[np.round((section_arr[:,1] - y_min - y_offset)*(1/resolution)).astype(int), np.round((section_arr[:,0] - x_min - x_offset)*(1/resolution)).astype(int)]
-            #np.savetxt("interpol_z.txt", interpol_z)
+            
             # current planar layer is in the midle (variable layer) 
             if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
                 section_arr[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
+                #correction for layerheight difference
                 section_arr[:,3] = e/length * ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
             else:
                 section_arr[:,3] = e / length
@@ -158,17 +161,17 @@ def trans_gcode(orig_gcode, surface_array):
                 section_arr[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
             
             if layernum > fullbottomlayer:
-                
-                section_arr[:,3] = section_arr[:,3] * (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                section_arr[:,3] = section_arr[:,3] * corr_factor
             format = 'G1 X%.3f Y%.3f Z%.4f E%.4f'
-            np.savetxt(file, section_arr, fmt = format)
+            np.savetxt(file, section_arr[:,:4], fmt = format)
             #clear out the written array
-            section_arr = np.zeros((0, 4)) 
-            
-            
-            # compute the new G1 String
-            #new_array += [f"{G1_str}{x_str}{valuex}{y_str}{valuey}{z_str}{valuez}{e_str}{valuee}" for valuex, valuey, valuez, valuee in zip(x_new, y_new, ztrans, etrans)]
-            
+            section_arr = np.zeros((0, 5)) 
+
     print("Fertig :)")
-        
+
+    return True
+
 # todo:
+# -> refine the algorithm for e extrusion values and movement without extrusion , so they dont crash into the part
+#       -> every movement part consists of a F change

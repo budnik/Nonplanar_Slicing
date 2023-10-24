@@ -237,6 +237,9 @@ def openGCODE(path: 'str',mode='mmap'):
                     if(comment):
                         if(comment[0].startswith(b'WIDTH')):
                             gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                    if(comment):
+                        if(comment[0].startswith(b'WIPE')):
+                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
                         
                     line_nr += 1 #counts actual amount of moving lines
         return gcode_arr

@@ -7,7 +7,7 @@ stl_pfad = "Welle.stl"
 triangle_array = filereader.openSTL(stl_pfad)
 Oberflaeche = surface.create_surface(triangle_array, np.pi / 3) # Winkel
 
-path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/test_files/Scheibe_line.gcode"
+path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/output.gcode"
 gcode_raw = filereader.openGCODE(path_gcode)
 gcode_transform_1.trans_gcode(gcode_raw, Oberflaeche)
 
