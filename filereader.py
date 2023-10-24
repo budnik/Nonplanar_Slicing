@@ -215,7 +215,7 @@ def openGCODE(path: 'str',mode='mmap'):
         lines = 0
         for line in file:
             lines += 1
-    gcode_arr = np.full(lines,np.nan,dtype=[('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')]) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
+    gcode_arr = np.full(lines,np.nan,dtype=[('Instruction','<U100'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')]) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
     if (mode=='mmap'):
         with open(path,'r') as f:  #opening file with context manager
             with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm: #initializes file memory mapping
@@ -233,6 +233,9 @@ def openGCODE(path: 'str',mode='mmap'):
                         gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list)).decode('utf-8')
                     if(comment):
                         if(comment[0].startswith(b'TYPE')):
+                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                    if(comment):
+                        if(comment[0].startswith(b'WIDTH')):
                             gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
                         
                     line_nr += 1 #counts actual amount of moving lines
