@@ -1,7 +1,5 @@
 *.gcode
 *.stl
 *.pyc
-__pycache__/filereader.cpython-311.pyc
-__pycache__/prusa_slicer.cpython-311.pyc
-__pycache__/surface.cpython-311.pyc
-test.py
+__pycache__
+gcode_transform_1_backup.py
