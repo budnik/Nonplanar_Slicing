@@ -1,31 +1,100 @@
 import dearpygui.dearpygui as dpg
 import dearpygui.demo as demo
+import filereader as fr
+import prusa_slicer as ps
+import surface as sf
+import numpy as np
+import gcode_transform_1 as gc1
+import os
+import transform as tf
 
 demo_on = 0
 
+stl_default = "Welle.stl"
+config_default = "test_files/generic_config_Deltiq2.ini"
+
+
 dpg.create_context()
-stl_dir = "C:\ "
-config_dir = "C:\ "
+stl_dir = "C:/ "
+config_dir = "C:/ "
 
 def stl_chosen(sender, app_data, user_data):
     stl_dir = app_data["file_path_name"]
+    dpg.set_value("checkbox_cad", False)
     dpg.set_value("stl_text", stl_dir)
     
 def config_chosen(sender, app_data, user_data):
     config_dir = app_data["file_path_name"]
-    print(app_data)
+    dpg.set_value("checkbox_config", False)
     dpg.set_value("config_text", config_dir)
     
 def calculate_button(sender, app_data, user_data):
-    print(len(dpg.get_value("stl_text")))
     if (len(dpg.get_value("stl_text")) > 4) and( len(dpg.get_value("config_text")) > 4):
         dpg.set_value("showtext_calculate_button", "calculation started")
-        #Hier Modulaufruf einsetzen!!
         
+               
         
     else:
-        dpg.set_value("showtext_calculate_button", "Warning, please define a path for the .stl and .ini config!")
+        dpg.set_value("showtext_calculate_button", "Info: Calculation started with default Path")
         
+        stl_dir = stl_default
+        dpg.set_value("stl_text", stl_dir)
+        dpg.set_value("checkbox_cad", True)
+        config_dir = config_default
+        dpg.set_value("config_text", config_dir)
+        dpg.set_value("checkbox_config", True)
+    
+    
+    dpg.show_item("loading")
+    orig_stl = fr.openSTL(dpg.get_value("stl_text"))
+    filtered_surface = sf.create_surface(orig_stl,np.deg2rad(45))
+    z_mean = np.average(filtered_surface[:,2])
+    
+# -----------------------Function for slicing etc. here -----------------------
+    if dpg.get_value("checkbox_case1"):
+        
+        temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
+        ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info')
+        orig_gcode = fr.openGCODE("output.gcode")
+        gc1.trans_gcode(orig_gcode, filtered_surface)
+        os.remove(temp_stl_path)
+    
+    if dpg.get_value("checkbox_case2"):
+        transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
+        temp_stl_path = fr.writeSTL(transformed_stl)
+        ps.sliceSTL(temp_stl_path,config_dir,'--info')
+        ps.repairSTL(temp_stl_path)
+        os.remove(temp_stl_path)
+        planar_gcode = fr.openGCODE('output.gcode')
+    
+    dpg.hide_item("loading")
+    dpg.set_value("showtext_calculate_button", "Finished Gcode ready, Enjoy")
+    
+
+ 
+def default_cad_path(sender, app_data, user_data):
+    if app_data:
+        stl_dir = stl_default
+        dpg.set_value("stl_text", stl_dir)
+    
+def default_config_path(sender, app_data, user_data):
+    if app_data:
+        config_dir = config_default
+        dpg.set_value("config_text", config_dir)
+        
+def case1_marked(sender, app_data, user_data):
+    if app_data:
+        dpg.set_value("checkbox_case2", False)
+    else:
+        dpg.set_value("checkbox_case1", True)
+    
+def case2_marked(sender, app_data, user_data):
+    if app_data:
+        dpg.set_value("checkbox_case1", False)
+    else:
+        dpg.set_value("checkbox_case2", True)
+            
+
 
 with dpg.file_dialog(directory_selector=False, show=False, callback=stl_chosen, id="stl_select", width=700 ,height=400):
     dpg.add_file_extension(".stl", color=(255, 255, 255, 255))
@@ -34,26 +103,55 @@ with dpg.file_dialog(directory_selector=False, show=False, callback=config_chose
     dpg.add_file_extension(".ini", color=(255, 255, 255, 255))
 
 
-with dpg.window(label="Slicer Settings", width=1000, height=300):
+with dpg.window(label="Slicer Settings", width=1000, height=500):
     
     with dpg.group(horizontal=True):
+        dpg.add_text("default:", tag="text_default_cad")
+        dpg.add_checkbox(label="    ", callback=default_cad_path, tag="checkbox_cad")
+        
         dpg.add_button(label="Select CAD File", callback=lambda: dpg.show_item("stl_select"), width=200)
         dpg.add_text("  Directory: ")
         dpg.add_text(stl_dir, tag="stl_text")
     
     with dpg.group(horizontal=True):
+        dpg.add_text("default:", tag="text_default_config")
+        dpg.add_checkbox(label="    ", callback=default_config_path,  tag="checkbox_config")
+        
         dpg.add_button(label="Select Prusaslicer Config", callback=lambda: dpg.show_item("slicer_config"), width=200)
         dpg.add_text("  Directory: ")
         dpg.add_text(config_dir, tag="config_text")
     
+    with dpg.group(horizontal=True):
+        dpg.add_text("Select a Case:     ")
+        dpg.add_text("Case 1 ", tag="text_case1")
+        
+        dpg.add_checkbox(label="     ", tag="checkbox_case1", callback=case1_marked, default_value=True)
+        dpg.add_text("Case 2", tag="text_case2")
+        dpg.add_checkbox(tag="checkbox_case2", callback=case2_marked)
+    
     with dpg.group(horizontal=True):   
         dpg.add_button(label="Calculate GCode", callback=calculate_button )
+        dpg.add_loading_indicator(tag="loading", show=False, radius=1.5)
         dpg.add_text("", tag="showtext_calculate_button")
+        
+#Tooltips:
+        
+    with dpg.tooltip("text_case1"):
+            dpg.add_text("tbd: Hier kommt die Beschreibung von Fall 1 hinein")
+            
+    with dpg.tooltip("text_case2"):
+            dpg.add_text("tbd: Hier kommt die Beschreibung von Fall 2 hinein")
+            
+    with dpg.tooltip("text_default_cad"):
+        dpg.add_text("The default Path is:")
+        dpg.add_text(stl_default)
+        
+    with dpg.tooltip("text_default_config"):
+        dpg.add_text("The default Path is:")
+        dpg.add_text(config_default)
+        
 
-
-
-
-dpg.create_viewport(title='Nonplanar Slicing', width=800, height=600)
+dpg.create_viewport(title='Nonplanar Slicing', width=1000, height=500)
 
 if demo_on == 1:
     demo.show_demo()
