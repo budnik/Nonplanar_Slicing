@@ -4,28 +4,32 @@ import numpy as np
 
 # Resample and calculate the transformed GCode according to the surface
 #----------------------------------------------------------------------
-# Input: Gcode in Arrayform and surface from surface module
-#        Computed Surface Array from surface.py
+# Input: Gcode in Arrayform ->  [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
+#        Computed Surface Array from surface.py -> .shape = [n,3] with its columns [x, y, z]
 # Output: File in the explorer with the transformed Gcode
 
-def trans_gcode(orig_gcode, surface_array):
+
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', printer="DeltiQ2"):
     fullbottomlayer = 4
     fulltoplayer = 4
     maxlayernum = 25
-    layerheight = 0.2
-    resolution = 0.1
+    layerheight = 0.2           # in mm
+    resolution = 0.02           # in mm
+    subg_resolution = 0.66      # in mm
     
+    print("Calculating Surface Interpolation")
     gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array)
     
     zmesh = surface.create_surface_array(surface_array, resolution)
 
-    section_arr = np.zeros((0, 5))      # Array for calculating the G1 Line sectionwise -> [x, y, z, e, f]
     
     file = open('nonplanar.gcode', 'w')
     
     x = 0
     y = 0
     z = 0
+    
+    z_old = 0
     
     G1_str = "G1"
     x_str = " X"
@@ -34,15 +38,21 @@ def trans_gcode(orig_gcode, surface_array):
     e_str = " E"
     f_str = " F"
     
-    x_offset = 125
-    y_offset = 105
+    format_move = 'G1 X%.3f Y%.3f Z%.4f'
+    format = 'G1 X%.3f Y%.3f Z%.4f E%.4f'
     
-    still_G1_line = False
-    line_offset = 0
+    x_offset = 0
+    y_offset = 0
+    
+    if printer == "MK3":
+        x_offset = 125
+        y_offset = 105
+
     length = 0
     
     y_min = np.min(surface_array[:,1])
     x_min = np.min(surface_array[:,0])
+    
     
     numline = orig_gcode.shape[0]
     numfulllayer = fullbottomlayer + fulltoplayer
@@ -53,25 +63,27 @@ def trans_gcode(orig_gcode, surface_array):
     for i in range(0, numline):         # Loop over every Line in the original GCode
         
         #Overview how long it will take :)
-        still_G1_line = False
-        teiler = np.round((numline / 10),0)
+        teiler = np.round((numline / 4),0)
         mod_i = i % teiler
         if mod_i == 0:
             procent = np.round(i / numline * 100, 0)
             
             print("Progress: ", procent, "%")
             
-        if i == 18409:
-            stop_here = True  
-        # General Code
+        if i == numline:
+            print("Progress: 100.0%")
+            
+        # Take the current Z layer directly out of the slicer
+        z_raw_instruction = orig_gcode["Instruction"][i]
+        if np.char.startswith(z_raw_instruction, ";Z:"):
+            z_curr = float(z_raw_instruction.replace(";Z:", ""))
+        
         if orig_gcode["Instruction"][i] == "G1":
             
             if np.isnan(x) == False:
                 x_old = x
             if np.isnan(y) == False:
                 y_old = y
-            if np.isnan(z) == False:
-                z_old = z
             
             # Read the current Line and reset the value to the old if it is NaN
             x = orig_gcode["X"][i]               
@@ -79,48 +91,100 @@ def trans_gcode(orig_gcode, surface_array):
             e = orig_gcode["E"][i]
             f = orig_gcode["F"][i]
             z = orig_gcode["Z"][i]
-            if np.isnan(z):
-                z = z_old
+            
+            if np.isnan(z) == False:
+                z_offset = z - z_curr
             
             # Main calculation if its a valid linear movement of the print itself
-            valid_line = (np.isnan(x) == False) and (np.isnan(y) == False) and ((np.isnan(e) == False) or (np.isnan(f) == False))
-            if valid_line:
                 
-                #calculate layerheight
-                layernum = np.round((z/layerheight),0)
+            #calculate layerheight
+            layernum = np.round((z_curr/layerheight),0)
                 
-                if layernum > fullbottomlayer:  # skip the calculation of the bottom Layer if false
-                    # set true to indicate we are still in 
-                    still_G1_line = True
-                    
-                    length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),1)
-                    
-                    #print(length, "Linie: ", i)
-                    # we work here with the standard 1mm resolution für the sub Gcode
-                    j = np.linspace(1, length, np.round(length, 0).astype(int))
-                    
-                    # calculate all x and y values between the start and end point of the G1 Line
-                    x_new = np.round(x_old + (x-x_old)/length * j, 3)
-                    y_new = np.round(y_old + (y-y_old)/length * j, 3)
-                    #z_new = z_old + (z-z_old)/length * j
-                    
-                    temp_actual_g_line = np.zeros((x_new.shape[0], 5))
-                    temp_actual_g_line[:, 0] = x_new[:]
-                    temp_actual_g_line[:, 1] = y_new[:]
-                    section_arr = np.concatenate((section_arr, temp_actual_g_line), axis=0)
-                    
-                     
-                else: # the G1 stays because it is the bottom layer, so just add the Line
-                    if np.isnan(e) == False:
-                        file.write(f"G1 X{orig_gcode['X'][i]} Y{orig_gcode['Y'][i]} E{orig_gcode['E'][i]}\n")
-                    
-                    if np.isnan(f) == False:
-                        file.write(f"G1 X{orig_gcode['X'][i]} Y{orig_gcode['Y'][i]} F{orig_gcode['F'][i]}\n")
-                    
-                    
-                    
-            else:     # If this "else" is called, it is a G1 Line, but not one with X, Y and E movement and gets directly stored
-                          
+            if layernum > fullbottomlayer:  # skip the calculation of the bottom Layer if false
+                                        
+                    # everytime it is a move command in X and Y direction, do it
+                    if (np.isnan(x) == False) and (np.isnan(y) == False):
+                        
+                        length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),1)
+                        
+                        # we work here with the standard 1mm resolution für the sub Gcode
+                        j = np.linspace(1, length, (np.round(length, 0)/subg_resolution).astype(int))
+                        
+                        # calculate all x and y values between the start and end point of the G1 Line
+                        x_new = np.round(x_old + (x-x_old)/length * j, 3)
+                        y_new = np.round(y_old + (y-y_old)/length * j, 3)
+                        
+                        actual_g_line = np.zeros((x_new.shape[0], 4))
+                        actual_g_line[:, 0] = x_new[:]
+                        actual_g_line[:, 1] = y_new[:]
+                        
+                        interpol_z = zmesh[np.round((actual_g_line[:,1] - y_min - y_offset)*(1/resolution)).astype(int), np.round((actual_g_line[:,0] - x_min - x_offset)*(1/resolution)).astype(int)]
+
+                        if (np.isnan(e) == False): # if its a normal print line
+                            # current planar layer is in the middle (variable layer) 
+                            if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
+                                actual_g_line[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
+                                #correction for layerheight difference
+                                actual_g_line[:,3] = e/length * ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
+                            else:
+                                actual_g_line[:,3] = e / length
+                                
+                            #current planar layer is in the top full layer
+                            if layernum > (maxlayernum - fulltoplayer):
+                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
+                            
+                            if layernum > fullbottomlayer:
+                                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                                actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
+                            
+                            #create an Offset if current z is not the actual z
+                            actual_g_line[:,2] += z_offset
+                            
+                            #save last z Value for moving commands without printing (with offset)
+                            z_old = actual_g_line[-1, 2]
+                            
+                            
+                            format_move = 'G1 X%.3f Y%.3f Z%.4f'
+                            np.savetxt(file, actual_g_line, fmt = format)  
+                            
+                        if np.isnan(e): # if its a moving line (without print -> e = NaN)
+                            # current planar layer is in the middle (variable layer) 
+                            if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
+                                actual_g_line[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
+                                
+                            #current planar layer is in the top full layer
+                            if layernum > (maxlayernum - fulltoplayer):
+                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
+                            
+                            #create an Offset if current z is not the actual z
+                            actual_g_line[:,2] += z_offset
+                            
+                            #save last z Value for moving commands without printing (with offset)
+                            z_old = actual_g_line[-1, 2]
+                            
+                            np.savetxt(file, actual_g_line[:,:3], fmt = format_move)                   
+                        
+                    else: # if the current line is not a normal move line but a E or Z or F line
+                        
+                        # if only z move G1 Line -> it wants to make an offset to move above the part
+                        if np.isnan(x) and np.isnan(y) and (np.isnan(z) == False) and np.isnan(e):
+                            z = np.round((z_old + z_offset), 3)
+                        
+                        add_str = G1_str
+                        if (np.isnan(x) == False) or (np.isnan(y) == False):
+                            print("Exceptionbehandlung Hier!")  # wird nur bei Bewegung in eine Richtung getriggert
+                        if (np.isnan(z) == False):
+                            add_str = add_str + z_str +str(z)
+                        if (np.isnan(e) == False):
+                            add_str = add_str + e_str +str(e)
+                        if (np.isnan(f) == False):
+                            add_str = add_str + f_str +str(f)
+                            
+                        file.write(add_str  + '\n')
+                        
+    
+            else: # the G1 stays because it is the bottom layer, so just add the Line
+                
                 add_str = G1_str
                 if (np.isnan(x) == False):
                     add_str = add_str + x_str +str(x)
@@ -132,46 +196,12 @@ def trans_gcode(orig_gcode, surface_array):
                     add_str = add_str + e_str +str(e)
                 if (np.isnan(f) == False):
                     add_str = add_str + f_str +str(f)
-                    
-                                
+                       
                 file.write(add_str  + '\n')
-
 
         else:       # If the "else" is called, the line should be copied as it is at the current line
             file.write(orig_gcode["Instruction"][i] + '\n') 
-        
-        if (still_G1_line == False) and (length != 0) and valid_line:
-            
-            # interpolate the temp saved x and y values
-            #xy_new_coord = np.concatenate([[section_arr[:,0]-x_offset], [section_arr[:,1]-y_offset]]).T
-            #interpol_z = np.ones((xy_new_coord.shape[0],))
-            #interpol_z = surface.interpolate_grid(xy_new_coord, surface_array)
-            interpol_z = zmesh[np.round((section_arr[:,1] - y_min - y_offset)*(1/resolution)).astype(int), np.round((section_arr[:,0] - x_min - x_offset)*(1/resolution)).astype(int)]
-            
-            # current planar layer is in the midle (variable layer) 
-            if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
-                section_arr[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
-                #correction for layerheight difference
-                section_arr[:,3] = e/length * ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
-            else:
-                section_arr[:,3] = e / length
-                
-            #current planar layer is in the top full layer
-            if layernum > (maxlayernum - fulltoplayer):
-                section_arr[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
-            
-            if layernum > fullbottomlayer:
-                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
-                section_arr[:,3] = section_arr[:,3] * corr_factor
-            format = 'G1 X%.3f Y%.3f Z%.4f E%.4f'
-            np.savetxt(file, section_arr[:,:4], fmt = format)
-            #clear out the written array
-            section_arr = np.zeros((0, 5)) 
 
-    print("Fertig :)")
+    print("GCode Transformation finished. Enjoy")
 
     return True
-
-# todo:
-# -> refine the algorithm for e extrusion values and movement without extrusion , so they dont crash into the part
-#       -> every movement part consists of a F change
