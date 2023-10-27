@@ -9,7 +9,7 @@ import os
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 
-gcode_dtype = np.dtype([('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
+gcode_dtype = np.dtype([('Instruction','<U600'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
 
 # Opens, verifies and parses a given stl-file
 # ----------------------------------------
@@ -215,7 +215,7 @@ def openGCODE(path: 'str',mode='mmap'):
         lines = 0
         for line in file:
             lines += 1
-    gcode_arr = np.full(lines,np.nan,dtype=[('Instruction','<U100'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')]) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
+    gcode_arr = np.full(lines,np.nan,dtype=gcode_dtype) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
     if (mode=='mmap'):
         with open(path,'r') as f:  #opening file with context manager
             with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm: #initializes file memory mapping
@@ -261,6 +261,42 @@ def openGCODE(path: 'str',mode='mmap'):
 
     if (mode !='mmap' and mode !='manual'):
         raise ValueError("Unsupported parsing mode '"+mode+"'. Use 'mmap' or 'manual'.")
+
+
+def openGCODE_keepcoms(path: 'str', get_config = True):
+
+    with open(path,'r') as file: # checks length of file to estimate array size to allocate
+        lines = 0
+        for line in file:
+            if line.startswith('; prusaslicer_config = begin'):
+                break
+            lines += 1
+    gcode_arr = np.full(lines,np.nan,dtype=gcode_dtype) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
+    with open(path,'r') as f:  #opening file with context manager
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm: #initializes file memory mapping
+            line_list = []
+            line_nr = 0 
+            while line_nr<lines:
+                splitline = mm.readline().replace(b'\n',b'').replace(b'\r',b'').split(b';')
+                line_list = splitline[0].strip().split(b' ')
+                comment = splitline[1:]
+                if line_list[0] == b'G1':  #if the current line is a moving line
+                    gcode_arr[line_nr]['Instruction'] = 'G1'
+                    for single_inst in line_list[1:]: #for loop through the entries of every line
+                        gcode_arr[line_nr][chr(single_inst[0])] = single_inst[1:] #puts it in the corresponding field
+                elif(comment and (line_list != [b''])): 
+                    gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list + [b';'] + [comment[0].strip()])).decode('utf-8') 
+                elif(comment and (line_list == [b''])): 
+                    gcode_arr[line_nr]['Instruction'] = (b';'.join([b''] + comment)).decode('utf-8') 
+                else:
+                    gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list)).decode('utf-8') 
+                line_nr += 1 #counts actual amount of moving lines
+            if(get_config == True):
+                prusa_config = mm.read()
+                return gcode_arr, prusa_config
+            else:
+                return gcode_arr
+
 
 
 # Testing Code:
