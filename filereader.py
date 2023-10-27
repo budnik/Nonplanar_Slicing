@@ -9,7 +9,7 @@ import os
 import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 
-gcode_dtype = np.dtype([('Instruction','<U600'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
+gcode_dtype = np.dtype([('Instruction','<U200'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
 
 # Opens, verifies and parses a given stl-file
 # ----------------------------------------
