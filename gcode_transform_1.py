@@ -6,13 +6,13 @@ import numpy as np
 #----------------------------------------------------------------------
 # Input: Gcode in Arrayform ->  [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
 #        Computed Surface Array from surface.py -> .shape = [n,3] with its columns [x, y, z]
+#        Printer, now between "DeltiQ2" or "MK3"
 # Output: File in the explorer with the transformed Gcode
 
 
-def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', printer="DeltiQ2"):
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', printer="DeltiQ2",config_string:'str'=False):
     fullbottomlayer = 4
     fulltoplayer = 4
-    maxlayernum = 25
     layerheight = 0.2           # in mm
     resolution = 0.02           # in mm
     subg_resolution = 0.66      # in mm
@@ -53,6 +53,10 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     y_min = np.min(surface_array[:,1])
     x_min = np.min(surface_array[:,0])
     
+    z_heights = orig_gcode["Instruction"][np.char.startswith(orig_gcode["Instruction"], ";Z:")]
+    z_max = float(max(np.char.replace(z_heights, ";Z:", "")) ) 
+    
+    maxlayernum = np.round((z_max / layerheight),0).astype(int)
     
     numline = orig_gcode.shape[0]
     numfulllayer = fullbottomlayer + fulltoplayer
@@ -201,7 +205,8 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
 
         else:       # If the "else" is called, the line should be copied as it is at the current line
             file.write(orig_gcode["Instruction"][i] + '\n') 
-
+    
     print("GCode Transformation finished. Enjoy")
-
+    if config_string != False:
+        file.write(config_string.decode('utf-8'))
     return True

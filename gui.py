@@ -11,7 +11,7 @@ import transform as tf
 demo_on = 0
 
 # Setup Default Paths if nothing is marked
-stl_default = "Welle.stl"
+stl_default = "test_files/test_pa_outline_fein_2.stl"
 config_default = "test_files/generic_config_Deltiq2.ini"
 
 # Create the window with its Context
@@ -82,8 +82,8 @@ def calculate_button(sender, app_data, user_data):
         # Here goes the calculations for Case 1
         temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
         ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info')
-        orig_gcode = fr.openGCODE("output.gcode")
-        gc1.trans_gcode(orig_gcode, filtered_surface)
+        orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
+        gc1.trans_gcode(orig_gcode, filtered_surface, config_string=config)
         os.remove(temp_stl_path)
     
     if dpg.get_value("checkbox_case2"):
