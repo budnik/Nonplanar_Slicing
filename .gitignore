@@ -6,3 +6,6 @@ gcode_transform_1_backup.py
 temp_main_2.py
 .vscode/settings.json
 output.gcode
+dist
+build
+gui.spec
