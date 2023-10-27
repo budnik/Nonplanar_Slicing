@@ -19,3 +19,12 @@ def repairSTL(target):
     command = "prusa-slicer-console.exe --export-stl {} --repair --output {}".format(target, target)
     print(command)
     subprocess.run(command, shell=True)
+
+# Opens the given STL-File in Prusa GCode-Viewer
+# ----------------------------------------
+# Input: target: GCode-File path (string)
+# Output: None
+def viewGCODE(target):
+    command = "prusa-gcodeviewer.exe {}".format(target)
+    print(command)
+    subprocess.run(command, shell=True)
