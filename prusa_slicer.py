@@ -1,13 +1,15 @@
 import subprocess
+import os
 
 
 # Slices a given STL-File planar in prusa slicer
 # ----------------------------------------
 # Input: target: STL-File path (string), profile: INI-File path (string), userParameters: additional paramters (string)
 # Output: None
-def sliceSTL(target, profile, userParameters):
+def sliceSTL(target, profile, userParameters, userPath):
     filename = "output.gcode"
-    command = "prusa-slicer-console.exe --export-gcode {} --output {} --load \"{}\" {}".format(target, filename,  profile, userParameters)
+    prusa_slicer_path = fr'"{userPath}\prusa-slicer-console.exe"'
+    command = f'{prusa_slicer_path} --export-gcode {target} --output {filename} --load {profile} {userParameters}'
     print(command)
     subprocess.run(command, shell=True)
 
@@ -16,7 +18,7 @@ def sliceSTL(target, profile, userParameters):
 # Input: target: STL-File path (string)
 # Output: None
 def repairSTL(target):
-    command = "prusa-slicer-console.exe --export-stl {} --repair --output {}".format(target, target)
+    command = f'prusa-slicer-console.exe --export-stl {target} --repair --output {target}'
     print(command)
     subprocess.run(command, shell=True)
 
@@ -24,7 +26,8 @@ def repairSTL(target):
 # ----------------------------------------
 # Input: target: GCode-File path (string)
 # Output: None
-def viewGCODE(target):
-    command = "prusa-gcodeviewer.exe {}".format(target)
+def viewGCODE(target, userPath):
+    prusa_path = fr'"{userPath}\prusa-gcodeviewer.exe"'
+    command = f"{prusa_path} {target}"
     print(command)
     subprocess.run(command, shell=True)
