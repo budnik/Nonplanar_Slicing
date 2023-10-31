@@ -70,7 +70,7 @@ def transformGCODE(gcode_data: 'gcode_dtype',stl_path: 'str', filtered_surface: 
     gcode_file.stop()
 
     layer_height = 0.2
-    zOffsetFac = 1.5
+    zOffsetFac = 1
 
     gcode_file2 = gcode_writer(stl_path)
     gcode_temp = fr.openGCODE_keepcoms('temp_gcode.gcode', get_config=False)
@@ -78,8 +78,8 @@ def transformGCODE(gcode_data: 'gcode_dtype',stl_path: 'str', filtered_surface: 
     gcode_temp['Z'][np.isinf(gcode_temp['Z'])] = gcode_temp['Z'][np.isinf(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][np.isinf(gcode_temp['Z'])], gcode_temp['Y'][np.isinf(gcode_temp['Z'])]), 'nearest')
     z_lowest = np.min(gcode_temp['Z'][~np.isnan(gcode_temp['E'])])
     print('lowest z = ', z_lowest)
-    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + zOffsetFac * layer_height
-    gcode_temp['Z'][np.less_equal(gcode_temp['Z'],(1+zOffsetFac)*layer_height)] = layer_height
+    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + zOffsetFac * layer_height + layer_height
+    gcode_temp['Z'][np.less_equal(gcode_temp['Z'],(1+zOffsetFac)*layer_height)] = layer_height + layer_height
     for line in gcode_temp:
         gcode_file2.set_line(*line)
     gcode_file2.flush()
