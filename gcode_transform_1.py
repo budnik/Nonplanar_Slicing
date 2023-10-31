@@ -24,8 +24,6 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
 
     
     file = open('nonplanar.gcode', 'w')
-    file_corr = open('correction.txt', 'w')
-    file_e_normal = open('eNormal.txt', 'w')
     
     x = 0
     y = 0
@@ -128,7 +126,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
 
                         if (np.isnan(e) == False): # if its a normal print line
                             
-                            file_e_normal.write(str(e) + '\n')
+                            
                             # current planar layer is in the middle (variable layer) 
                             if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
                                 actual_g_line[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
@@ -153,8 +151,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                             
                             #save last z Value for moving commands without printing (with offset)
                             z_old = actual_g_line[-1, 2]
-                            
-                            np.savetxt(file_corr, actual_g_line[:,3])                            
+                                                     
                             np.savetxt(file, actual_g_line, fmt = format)  
                             
                         if np.isnan(e): # if its a moving line (without print -> e = NaN)
