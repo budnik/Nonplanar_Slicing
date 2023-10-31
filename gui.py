@@ -21,6 +21,9 @@ dpg.create_context()
 stl_dir = "C:/ "
 config_dir = "C:/ "
 
+stl_path_dir_default = stl_dir
+config_path_dir_default = config_dir
+
 
 # Interupthandling if a button or similiar is activated
 def stl_chosen(sender, app_data, user_data):
@@ -54,6 +57,20 @@ def case2_marked(sender, app_data, user_data):
         dpg.set_value("checkbox_case1", False)
     else:
         dpg.set_value("checkbox_case2", True)
+        
+def show_preview_surface(sender, app_data, user_data):
+    current_stl_path = dpg.get_value("stl_text") 
+    if current_stl_path == stl_path_dir_default:
+        stl_dir = stl_default
+    else:
+        stl_dir = current_stl_path
+        
+    orig_stl = fr.openSTL(stl_dir)
+    filtered_surface = sf.create_surface(orig_stl,np.deg2rad(45))
+    
+def show_gcode_prusaslicer(sender, app_data, user_data):
+    ps.viewGCODE("nonplanar.gcode")
+    
                
 def calculate_button(sender, app_data, user_data):
     # if the paths are changed to a custom one
@@ -143,6 +160,9 @@ with dpg.window(label="Slicer Settings", width=1000, height=500):
         dpg.add_loading_indicator(tag="loading", show=False, radius=1.5)
         dpg.add_text("", tag="showtext_calculate_button")
        
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
+        dpg.add_button(label="Open Nonplanar GCode", callback=show_gcode_prusaslicer)
         
 #Tooltips: (hovering over Items to show additional Information)
     # Case 1 Infos

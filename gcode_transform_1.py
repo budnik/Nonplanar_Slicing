@@ -2,7 +2,7 @@ import surface
 import numpy as np
 
 
-# Resample and calculate the transformed GCode according to the surface
+# Resample and calculate the transformed GCode according to the surface --> Curved Adaptive Layer Slicing (CLAS)
 #----------------------------------------------------------------------
 # Input: Gcode in Arrayform ->  [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
 #        Computed Surface Array from surface.py -> .shape = [n,3] with its columns [x, y, z]
@@ -131,7 +131,8 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                                 #correction for layerheight difference
                                 actual_g_line[:,3] = e/length * ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
                             else:
-                                actual_g_line[:,3] = e / length
+                                factor = ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
+                                actual_g_line[:,3] = e / length * factor
                                 
                             #current planar layer is in the top full layer
                             if layernum > (maxlayernum - fulltoplayer):
@@ -147,8 +148,6 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                             #save last z Value for moving commands without printing (with offset)
                             z_old = actual_g_line[-1, 2]
                             
-                            
-                            format_move = 'G1 X%.3f Y%.3f Z%.4f'
                             np.savetxt(file, actual_g_line, fmt = format)  
                             
                         if np.isnan(e): # if its a moving line (without print -> e = NaN)

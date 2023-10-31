@@ -3,7 +3,7 @@ import numpy as np
 import surface
 import gcode_transform_1
 
-stl_pfad = "Welle.stl"
+stl_pfad = "test_files/test_pa_outline_fein_2.stl"
 triangle_array = filereader.openSTL(stl_pfad)
 Oberflaeche = surface.create_surface(triangle_array, np.pi / 3) # Winkel
 
