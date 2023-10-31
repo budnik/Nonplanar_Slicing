@@ -7,6 +7,8 @@ import numpy as np
 import gcode_transform_1 as gc1
 import os
 import transform as tf
+import platform
+import matplotlib.pyplot as plt
 
 demo_on = 0
 
@@ -17,12 +19,25 @@ config_default = "test_files/generic_config_Deltiq2.ini"
 # Create the window with its Context
 dpg.create_context()
 
+# get current Operating system -> "windows" = Windows, "darwin" = Mac OS
+os_current = platform.system()
+print(os_current)
+
+if os_current == "Windows":
+    prusaslicer_default_path = "C:\Program Files\Prusa3D\PrusaSlicer"
+    
+if os_current == "Darwin":
+    prusaslicer_default_path = 'Use "Change Prusaslicer Path" for defining Path'
+
 # Standard comment as path
 stl_dir = "C:/ "
 config_dir = "C:/ "
 
 stl_path_dir_default = stl_dir
 config_path_dir_default = config_dir
+
+
+
 
 
 # Interupthandling if a button or similiar is activated
@@ -35,6 +50,10 @@ def config_chosen(sender, app_data, user_data):
     config_dir = app_data["file_path_name"]
     dpg.set_value("checkbox_config", False)
     dpg.set_value("config_text", config_dir)
+    
+def slicer_chosen(sender, app_data, user_data):
+    prusaslicer_default_path = app_data["file_path_name"]
+    dpg.set_value("slicer_text", prusaslicer_default_path)
     
 def default_cad_path(sender, app_data, user_data):
     if app_data:
@@ -67,9 +86,10 @@ def show_preview_surface(sender, app_data, user_data):
         
     orig_stl = fr.openSTL(stl_dir)
     filtered_surface = sf.create_surface(orig_stl,np.deg2rad(45))
+
     
 def show_gcode_prusaslicer(sender, app_data, user_data):
-    ps.viewGCODE("nonplanar.gcode")
+    ps.viewGCODE("nonplanar.gcode", dpg.get_value("slicer_text"))
     
                
 def calculate_button(sender, app_data, user_data):
@@ -95,32 +115,40 @@ def calculate_button(sender, app_data, user_data):
     z_mean = np.average(filtered_surface[:,2])
     
 # -----------------------Function for slicing etc. here -----------------------
-    if dpg.get_value("checkbox_case1"):
-        # Here goes the calculations for Case 1
-        temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
-        ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info')
-        orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
-        gc1.trans_gcode(orig_gcode, filtered_surface, config_string=config)
-        os.remove(temp_stl_path)
-    
-    if dpg.get_value("checkbox_case2"):
-        # Here goes the calculations for Case 2
-        transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
-        temp_stl_path = fr.writeSTL(transformed_stl)
-        ps.sliceSTL(temp_stl_path,config_dir,'--info')
-        ps.repairSTL(temp_stl_path)
-        os.remove(temp_stl_path)
-        planar_gcode = fr.openGCODE('output.gcode')
+    if os.path.exists(dpg.get_value("slicer_text")+"\prusa-slicer-console.exe"):
+        if dpg.get_value("checkbox_case1"):
+            # Here goes the calculations for Case 1
+            temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
+            ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info', dpg.get_value("slicer_text"))
+            orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
+            gc1.trans_gcode(orig_gcode, filtered_surface, config_string=config)
+            os.remove(temp_stl_path)
+        
+        if dpg.get_value("checkbox_case2"):
+            # Here goes the calculations for Case 2
+            transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
+            temp_stl_path = fr.writeSTL(transformed_stl)
+            ps.sliceSTL(temp_stl_path,config_dir,'--info')
+            ps.repairSTL(temp_stl_path)
+            os.remove(temp_stl_path)
+            planar_gcode = fr.openGCODE('output.gcode')
 
-    # finishing informations for the User
-    dpg.hide_item("loading")
-    dpg.set_value("showtext_calculate_button", "Finished Gcode ready, Enjoy")
+        # finishing informations for the User
+        dpg.hide_item("loading")
+        dpg.set_value("showtext_calculate_button", "Finished Gcode ready, Enjoy")
+        
+    else:
+        dpg.hide_item("loading")
+        dpg.set_value("showtext_calculate_button", "Prusaslicer Executable couldn't be found in given directory!")
     
 
 # Here are the File dialog defined
 with dpg.file_dialog(directory_selector=False, show=False, callback=stl_chosen, id="stl_select", width=700 ,height=400):
     dpg.add_file_extension(".stl", color=(255, 255, 255, 255))
-
+    
+with dpg.file_dialog(directory_selector=True, show=False, callback=slicer_chosen, id="slicer_select", width=700 ,height=400):
+    dpg.add_file_extension("")
+    
 with dpg.file_dialog(directory_selector=False, show=False, callback=config_chosen, id="slicer_config", width=700 ,height=400):
     dpg.add_file_extension(".ini", color=(255, 255, 255, 255))
 
@@ -163,6 +191,14 @@ with dpg.window(label="Slicer Settings", width=1000, height=500):
     with dpg.group(horizontal=True):
         dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
         dpg.add_button(label="Open Nonplanar GCode", callback=show_gcode_prusaslicer)
+        
+    with dpg.group(horizontal=True):
+        dpg.add_text("------------------------------------------------------------------------------------------------------------")
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="Change Prusaslicer DIR", callback=lambda: dpg.show_item("slicer_select"), width=200)
+        dpg.add_text(" Current Directory: ")
+        dpg.add_text(prusaslicer_default_path, tag="slicer_text")
+        
         
 #Tooltips: (hovering over Items to show additional Information)
     # Case 1 Infos
