@@ -9,3 +9,7 @@ output.gcode
 dist
 build
 gui.spec
+test_files/getLineParams.m
+test_files/Matcontrol.m
+test_files/test_pa_outline_fein_2_offset_out.txt
+test_files/test_pa_outline_fein_2_planar_out.txt
