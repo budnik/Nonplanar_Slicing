@@ -15,7 +15,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     fulltoplayer = 4
     layerheight = 0.2           # in mm
     resolution = 0.02           # in mm
-    subg_resolution = 0.66      # in mm
+    subg_resolution = 1         # in mm
     
     print("Calculating Surface Interpolation")
     gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array)
@@ -24,6 +24,8 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
 
     
     file = open('nonplanar.gcode', 'w')
+    file_corr = open('correction.txt', 'w')
+    file_e_normal = open('eNormal.txt', 'w')
     
     x = 0
     y = 0
@@ -109,10 +111,10 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                     # everytime it is a move command in X and Y direction, do it
                     if (np.isnan(x) == False) and (np.isnan(y) == False):
                         
-                        length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),1)
-                        
+                        length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),0)
+                                           
                         # we work here with the standard 1mm resolution für the sub Gcode
-                        j = np.linspace(1, length, (np.round(length, 0)/subg_resolution).astype(int))
+                        j = np.linspace(1, length, (length/subg_resolution).astype(int))
                         
                         # calculate all x and y values between the start and end point of the G1 Line
                         x_new = np.round(x_old + (x-x_old)/length * j, 3)
@@ -125,14 +127,17 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                         interpol_z = zmesh[np.round((actual_g_line[:,1] - y_min - y_offset)*(1/resolution)).astype(int), np.round((actual_g_line[:,0] - x_min - x_offset)*(1/resolution)).astype(int)]
 
                         if (np.isnan(e) == False): # if its a normal print line
+                            
+                            file_e_normal.write(str(e) + '\n')
                             # current planar layer is in the middle (variable layer) 
                             if layernum > fullbottomlayer and layernum <= (maxlayernum - fulltoplayer):
                                 actual_g_line[:,2] = (layernum - fullbottomlayer) * (interpol_z - numfulllayer * layerheight) / (numvariablelayer) + fullbottomlayer * layerheight
                                 #correction for layerheight difference
-                                actual_g_line[:,3] = e/length * ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
+                                scaling_factor = ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
+                                actual_g_line[:,3] = (e/length) * scaling_factor
+                                
                             else:
-                                factor = ((interpol_z - numfulllayer * layerheight) / (numvariablelayer * layerheight))
-                                actual_g_line[:,3] = e / length * factor
+                                actual_g_line[:,3] = e / length 
                                 
                             #current planar layer is in the top full layer
                             if layernum > (maxlayernum - fulltoplayer):
@@ -141,6 +146,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                             if layernum > fullbottomlayer:
                                 corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
                                 actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
+                                
                             
                             #create an Offset if current z is not the actual z
                             actual_g_line[:,2] += z_offset
@@ -148,6 +154,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                             #save last z Value for moving commands without printing (with offset)
                             z_old = actual_g_line[-1, 2]
                             
+                            np.savetxt(file_corr, actual_g_line[:,3])                            
                             np.savetxt(file, actual_g_line, fmt = format)  
                             
                         if np.isnan(e): # if its a moving line (without print -> e = NaN)
@@ -208,4 +215,6 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     print("GCode Transformation finished. Enjoy")
     if config_string != False:
         file.write(config_string.decode('utf-8'))
+        
+    file.close()
     return True
