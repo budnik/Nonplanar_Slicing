@@ -83,7 +83,7 @@ def transformGCODE(gcode_data: 'gcode_dtype',stl_path: 'str', filtered_surface: 
     for line in gcode_temp:
         gcode_file2.set_line(*line)
     gcode_file2.flush()
-    gcode_file2.set_comm(prusa_generated_config)
+    gcode_file2.set_config(prusa_generated_config)
     gcode_file2.stop()
 
 class gcode_writer:
@@ -106,13 +106,8 @@ class gcode_writer:
         if(self.currline >= self.batchsize):
             self.flush()
 
-    def set_comm(self, comment):
-        try:
-            self.f.write(comment.decode('utf-8') )
-        except AttributeError:
-            self.f.write(comment)
-        except Exception as e:
-            raise e
+    def set_config(self, comment):
+        self.f.write(comment.__str__())
 
     def flush(self):
         for line in self.lines[0:self.currline]:
