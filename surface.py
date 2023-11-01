@@ -15,7 +15,13 @@ import matplotlib.pyplot as plt
 ## Output:  gives back 3 Columnvectors: 2 coordinates with the corresponding z value
 
 def create_surface(stl_triangles, max_angle):
-    #to be programmed ----------------------
+    
+    limits = np.zeros((4))
+    limits[0] = np.amin([stl_triangles[:,3],stl_triangles[:,6], stl_triangles[:,9]])
+    limits[1] = np.amax([stl_triangles[:,3],stl_triangles[:,6], stl_triangles[:,9]])
+    limits[2] = np.amin([stl_triangles[:,4],stl_triangles[:,7], stl_triangles[:,10]])
+    limits[3] = np.amax([stl_triangles[:,4],stl_triangles[:,7], stl_triangles[:,10]])
+    
     u = stl_triangles[:,0:3]                        # Create an Array with the normalvector values
 
     c = u[:,2] / np.linalg.norm(u, axis=1)          # -> cosine of the angle
@@ -28,7 +34,7 @@ def create_surface(stl_triangles, max_angle):
     ##  surface_filtered contains x,y,z points of the surface
     #   surface_filtered[x, y, z]
     
-    return surface_filtered
+    return surface_filtered, limits
 
 
 
@@ -54,14 +60,19 @@ def interpolate_grid(points_to_interpolate, reference_points, method_interpol = 
 ## Output:  
     
     
-def create_gradient(surface_data):
+def create_gradient(surface_data, limits=0):
    
-    x_min = np.min(surface_data[:,0])
-    x_max = np.max(surface_data[:,0])
-    y_min = np.min(surface_data[:,1])
-    y_max = np.max(surface_data[:,1])
-    z_min = np.min(surface_data[:,2])
-    z_max = np.max(surface_data[:,2])
+    if str(limits) != '0':
+        x_min = limits[0]
+        x_max = limits[1]
+        y_min = limits[2]
+        y_max = limits[3]
+    else:
+        x_min = np.min(surface_data[:,0])
+        x_max = np.max(surface_data[:,0])
+        y_min = np.min(surface_data[:,1])
+        y_max = np.max(surface_data[:,1])
+        
    
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.5), np.arange(round(y_min, 1), round(y_max, 1), 0.5))
 
@@ -82,22 +93,6 @@ def create_gradient(surface_data):
 #           2 Vectors with the Shape [n,1] for the x and y Values of the Outline
 
 
-    
-def outline_detect(stl_triangles):
-    # set z values to 0 from all points
-    stl_triangles[:, [5, 8, 11]] = 0
-    # Connect all Points to one big Array with shape [n,3]
-    reduced_array = np.concatenate([stl_triangles[:, 3:5], stl_triangles[:, 6:8], stl_triangles[:, 9:11]], axis=0)
-    # delete all points that are more than once in the array
-    points = np.unique(reduced_array, axis=0)
-    # create a convex hull with the given points
-    hull = ConvexHull(points)
-    # visualize the current outline detection -> uncomment later if anoying!
-    #convex_hull_plot_2d(hull)   # just to visualize the convex shape that is created
-    # return 2 vectors with the x and y values of the detected outline
-    return points[hull.vertices,0], points[hull.vertices,1]
-
-
 
 ## Input:   surface_data            -> the given datapoints of the Surface [n, (x,y,z)]
 #           resolution              -> in mm how big the steps for the surface reference array should be
@@ -106,13 +101,18 @@ def outline_detect(stl_triangles):
 
 ## Output:  gives the interpolated Zmesh for the corresponding points in the array
 
-def create_surface_array(surface_data, resolution):
-    x_min = np.min(surface_data[:,0])
-    x_max = np.max(surface_data[:,0])
-    y_min = np.min(surface_data[:,1])
-    y_max = np.max(surface_data[:,1])
-    z_min = np.min(surface_data[:,2])
-    z_max = np.max(surface_data[:,2])
+def create_surface_array(surface_data, resolution, limits=0):
+ 
+    if str(limits) != '0':
+        x_min = limits[0]
+        x_max = limits[1]
+        y_min = limits[2]
+        y_max = limits[3]
+    else:
+        x_min = np.min(surface_data[:,0])
+        x_max = np.max(surface_data[:,0])
+        y_min = np.min(surface_data[:,1])
+        y_max = np.max(surface_data[:,1])
    
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), resolution), np.arange(round(y_min, 1), round(y_max, 1), resolution))
 
