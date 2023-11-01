@@ -11,6 +11,106 @@ from scipy.spatial import Delaunay
 
 gcode_dtype = np.dtype([('Instruction','<U200'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])
 
+class slicer_config:
+    options_names = ['autoemit_temperature_commands', 'avoid_crossing_curled_overhangs', 'avoid_crossing_perimeters',
+                'avoid_crossing_perimeters_max_detour', 'bed_custom_model', 'bed_custom_texture', 'bed_shape',
+                'bed_temperature', 'before_layer_gcode', 'between_objects_gcode', 'bottom_fill_pattern',
+                'bottom_solid_layers', 'bottom_solid_min_thickness', 'bridge_acceleration', 'bridge_angle',
+                'bridge_fan_speed', 'bridge_flow_ratio', 'bridge_speed', 'brim_separation', 'brim_type',
+                'brim_width', 'color_change_gcode', 'compatible_printers_condition_cummulative','complete_objects',
+                'cooling', 'cooling_tube_length', 'cooling_tube_retraction','default_acceleration',
+                'default_filament_profile', 'default_print_profile','deretract_speed', 'disable_fan_first_layers',
+                'dont_support_bridges', 'draft_shield','duplicate_distance', 'elefant_foot_compensation',
+                'enable_dynamic_fan_speeds','enable_dynamic_overhang_speeds', 'end_filament_gcode', 'end_gcode',
+                'external_perimeter_acceleration', 'external_perimeter_extrusion_width', 'external_perimeter_speed',
+                'external_perimeters_first', 'extra_loading_move', 'extra_perimeters', 'extra_perimeters_on_overhangs',
+                'extruder_clearance_height', 'extruder_clearance_radius', 'extruder_colour', 'extruder_offset',
+                'extrusion_axis', 'extrusion_multiplier', 'extrusion_width', 'fan_always_on', 'fan_below_layer_time',
+                'filament_colour', 'filament_cooling_final_speed', 'filament_cooling_initial_speed',
+                'filament_cooling_moves', 'filament_cost', 'filament_density', 'filament_diameter', 'filament_load_time',
+                'filament_loading_speed', 'filament_loading_speed_start', 'filament_max_volumetric_speed',
+                'filament_minimal_purge_on_wipe_tower', 'filament_multitool_ramming', 'filament_multitool_ramming_flow',
+                'filament_multitool_ramming_volume', 'filament_notes', 'filament_ramming_parameters',
+                'filament_retract_before_travel', 'filament_retract_before_wipe', 'filament_retract_layer_change',
+                'filament_retract_length', 'filament_retract_lift', 'filament_retract_speed', 'filament_settings_id',
+                'filament_soluble', 'filament_spool_weight', 'filament_toolchange_delay', 'filament_type',
+                'filament_unload_time', 'filament_unloading_speed', 'filament_unloading_speed_start', 'filament_vendor',
+                'filament_wipe', 'fill_angle', 'fill_density', 'fill_pattern', 'first_layer_acceleration',
+                'first_layer_acceleration_over_raft', 'first_layer_bed_temperature', 'first_layer_extrusion_width',
+                'first_layer_height', 'first_layer_speed', 'first_layer_speed_over_raft', 'first_layer_temperature',
+                'full_fan_speed_layer', 'fuzzy_skin', 'fuzzy_skin_point_dist', 'fuzzy_skin_thickness', 'gap_fill_enabled',
+                'gap_fill_speed', 'gcode_comments', 'gcode_flavor', 'gcode_label_objects', 'gcode_resolution',
+                'gcode_substitutions', 'high_current_on_filament_swap', 'host_type', 'infill_acceleration',
+                'infill_anchor', 'infill_anchor_max', 'infill_every_layers', 'infill_extruder', 'infill_extrusion_width',
+                'infill_first', 'infill_overlap', 'infill_speed', 'interface_shells', 'ironing', 'ironing_flowrate',
+                'ironing_spacing', 'ironing_speed', 'ironing_type', 'layer_gcode', 'layer_height', 'machine_limits_usage',
+                'machine_max_acceleration_e', 'machine_max_acceleration_extruding', 'machine_max_acceleration_retracting',
+                'machine_max_acceleration_travel', 'machine_max_acceleration_x', 'machine_max_acceleration_y',
+                'machine_max_acceleration_z', 'machine_max_feedrate_e', 'machine_max_feedrate_x', 'machine_max_feedrate_y',
+                'machine_max_feedrate_z', 'machine_max_jerk_e', 'machine_max_jerk_x', 'machine_max_jerk_y',
+                'machine_max_jerk_z', 'machine_min_extruding_rate', 'machine_min_travel_rate', 'max_fan_speed',
+                'max_layer_height', 'max_print_height', 'max_print_speed', 'max_volumetric_extrusion_rate_slope_negative',
+                'max_volumetric_extrusion_rate_slope_positive', 'max_volumetric_speed', 'min_bead_width', 'min_fan_speed',
+                'min_feature_size', 'min_layer_height', 'min_print_speed', 'min_skirt_length',
+                'mmu_segmented_region_interlocking_depth', 'mmu_segmented_region_max_width', 'notes', 'nozzle_diameter',
+                'only_retract_when_crossing_perimeters', 'ooze_prevention', 'output_filename_format',
+                'overhang_fan_speed_0', 'overhang_fan_speed_1', 'overhang_fan_speed_2', 'overhang_fan_speed_3',
+                'overhang_speed_0', 'overhang_speed_1', 'overhang_speed_2', 'overhang_speed_3', 'overhangs',
+                'parking_pos_retraction', 'pause_print_gcode', 'perimeter_acceleration', 'perimeter_extruder',
+                'perimeter_extrusion_width', 'perimeter_generator', 'perimeter_speed', 'perimeters',
+                'physical_printer_settings_id', 'post_process', 'print_settings_id', 'printer_model', 'printer_notes',
+                'printer_settings_id', 'printer_technology', 'printer_variant', 'printer_vendor',
+                'raft_contact_distance', 'raft_expansion', 'raft_first_layer_density', 'raft_first_layer_expansion',
+                'raft_layers', 'remaining_times', 'resolution', 'retract_before_travel', 'retract_before_wipe',
+                'retract_layer_change', 'retract_length', 'retract_length_toolchange', 'retract_lift',
+                'retract_lift_above', 'retract_lift_below', 'retract_restart_extra', 'retract_restart_extra_toolchange',
+                'retract_speed', 'seam_position', 'silent_mode', 'single_extruder_multi_material',
+                'single_extruder_multi_material_priming', 'skirt_distance', 'skirt_height', 'skirts', 
+                'slice_closing_radius', 'slicing_mode', 'slowdown_below_layer_time', 'small_perimeter_speed',
+                'solid_infill_acceleration', 'solid_infill_below_area', 'solid_infill_every_layers',
+                'solid_infill_extruder', 'solid_infill_extrusion_width', 'solid_infill_speed', 'spiral_vase',
+                'staggered_inner_seams', 'standby_temperature_delta', 'start_filament_gcode', 'start_gcode',
+                'support_material', 'support_material_angle', 'support_material_auto',
+                'support_material_bottom_contact_distance', 'support_material_bottom_interface_layers',
+                'support_material_buildplate_only', 'support_material_closing_radius', 'support_material_contact_distance',
+                'support_material_enforce_layers', 'support_material_extruder', 'support_material_extrusion_width',
+                'support_material_interface_contact_loops', 'support_material_interface_extruder',
+                'support_material_interface_layers', 'support_material_interface_pattern', 'support_material_interface_spacing',
+                'support_material_interface_speed', 'support_material_pattern', 'support_material_spacing',
+                'support_material_speed', 'support_material_style', 'support_material_synchronize_layers',
+                'support_material_threshold', 'support_material_with_sheath', 'support_material_xy_spacing',
+                'support_tree_angle', 'support_tree_angle_slow', 'support_tree_branch_diameter',
+                'support_tree_branch_diameter_angle', 'support_tree_branch_diameter_double_wall', 'support_tree_branch_distance',
+                'support_tree_tip_diameter', 'support_tree_top_rate', 'temperature', 'template_custom_gcode', 'thick_bridges',
+                'thin_walls', 'threads', 'thumbnails', 'thumbnails_format', 'toolchange_gcode', 'top_fill_pattern',
+                'top_infill_extrusion_width', 'top_solid_infill_acceleration', 'top_solid_infill_speed', 'top_solid_layers',
+                'top_solid_min_thickness', 'travel_acceleration', 'travel_speed', 'travel_speed_z', 'use_firmware_retraction',
+                'use_relative_e_distances', 'use_volumetric_e', 'variable_layer_height', 'wall_distribution_count',
+                'wall_transition_angle', 'wall_transition_filter_deviation', 'wall_transition_length', 'wipe', 'wipe_into_infill',
+                'wipe_into_objects', 'wipe_tower', 'wipe_tower_bridging', 'wipe_tower_brim_width', 'wipe_tower_cone_angle',
+                'wipe_tower_extra_spacing', 'wipe_tower_extruder', 'wipe_tower_no_sparse_layers', 'wipe_tower_rotation_angle',
+                'wipe_tower_width', 'wipe_tower_x', 'wipe_tower_y', 'wiping_volumes_extruders', 'wiping_volumes_matrix',
+                'xy_size_compensation', 'z_offset']
+    options_set = []
+    def __init__(self,config_string: 'str') -> None:
+        config_string = config_string.decode('utf-8')
+        def seek_substring(self,substring):
+            try:
+                self.id = self.string.find(substring) + len(substring)
+            except(Exception):
+                self.id = -1
+        self.string = config_string
+        self.id = 0
+        for option in self.options_names:
+            seek_substring(self,option)
+            self.options_set.append(config_string[self.id + 3:].split(';')[0] if self.id >= 0 else ' ')
+
+    def __str__(self):
+        return '; '.join(f"{option_name} = {option}" for option_name, option in zip(*[self.options_names,self.options_set]))
+    
+    def get_config_param(self,option: 'str'):
+        return self.options_set[self.options_names.index(option)]
+
 # Opens, verifies and parses a given stl-file
 # ----------------------------------------
 # Input: STL-File path (string)
@@ -198,74 +298,50 @@ def genBlock(stl_triangles: 'np.ndarray[np.float]', z_mean: 'np.float'):
     return flat_stl
     #return uniq, triangles_check
 
-# Opens, verifies and parses a given stl-file
-# ----------------------------------------
-# Input: STL-File path (string)
-# Output: None
-#def openSTL_lib(path):
-#    your_mesh = mesh.Mesh.from_file(path)
-
 # Opens, verifies and parses a given GCODE-file
 # ----------------------------------------
 # Input: GCODE-File path (string), reading mode (mmap, manual, None) 
 # Output: [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
-def openGCODE(path: 'str',mode='mmap'):
-
+def openGCODE(path: 'str'):
     with open(path,'r') as file: # checks length of file to estimate array size to allocate
         lines = 0
         for line in file:
             lines += 1
     gcode_arr = np.full(lines,np.nan,dtype=gcode_dtype) #initializes an array of NaN's with a custom datatype, i.o. to acces each value by name
-    if (mode=='mmap'):
-        with open(path,'r') as f:  #opening file with context manager
-            with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm: #initializes file memory mapping
-                line_list = []
-                line_nr = 0 
-                while line_nr<lines:
-                    splitline = mm.readline().replace(b'\n',b'').split(b';')
-                    line_list = splitline[0].strip().split(b' ')
-                    comment = splitline[1:]
-                    if line_list[0] == b'G1':  #if the current line is a moving line
-                        gcode_arr[line_nr]['Instruction'] = 'G1'
-                        for single_inst in line_list[1:]: #for loop through the entries of every line
-                            gcode_arr[line_nr][chr(single_inst[0])] = single_inst[1:] #puts it in the corresponding field
-                    else:
-                        gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list)).decode('utf-8')
-                    if(comment):
-                        if(comment[0].startswith(b'TYPE')):
-                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
-                    if(comment):
-                        if(comment[0].startswith(b'WIDTH')):
-                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
-                    
-                    if(comment):
-                        if(comment[0].startswith(b'Z:')): 
-                            gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
-                    
-                    line_nr += 1 #counts actual amount of moving lines
-        return gcode_arr
-
-    if (mode=='manual'):
-        with open(path,'rb') as f:  #opening file with context manager
-            line_list = f.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
-            line_nr = 0
+    with open(path,'r') as f:  #opening file with context manager
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm: #initializes file memory mapping
+            line_list = []
+            line_nr = 0 
             while line_nr<lines:
-                line_list = f.readline().replace(b'\n',b'').split(b';')[0].strip().split(b' ')
+                splitline = mm.readline().replace(b'\n',b'').split(b';')
+                line_list = splitline[0].strip().split(b' ')
+                comment = splitline[1:]
                 if line_list[0] == b'G1':  #if the current line is a moving line
                     gcode_arr[line_nr]['Instruction'] = 'G1'
                     for single_inst in line_list[1:]: #for loop through the entries of every line
                         gcode_arr[line_nr][chr(single_inst[0])] = single_inst[1:] #puts it in the corresponding field
                 else:
                     gcode_arr[line_nr]['Instruction'] = (b' '.join(line_list)).decode('utf-8')
+                if(comment):
+                    if(comment[0].startswith(b'TYPE')):
+                        gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                if(comment):
+                    if(comment[0].startswith(b'WIDTH')):
+                        gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                
+                if(comment):
+                    if(comment[0].startswith(b'Z:')): 
+                        gcode_arr[line_nr]['Instruction'] = (b';' + comment[0]).decode('utf-8')
+                
                 line_nr += 1 #counts actual amount of moving lines
-        return gcode_arr
-
-    if (mode !='mmap' and mode !='manual'):
-        raise ValueError("Unsupported parsing mode '"+mode+"'. Use 'mmap' or 'manual'.")
+    return gcode_arr
 
 
+# Opens, verifies and parses a given GCODE-file while retaining all comments
+# ----------------------------------------
+# Input: GCODE-File path (string), get_config (if to return the string of the config at the end of the sliced gcode)
+# Output: [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
 def openGCODE_keepcoms(path: 'str', get_config = True):
-
     with open(path,'r') as file: # checks length of file to estimate array size to allocate
         lines = 0
         for line in file:
@@ -294,11 +370,13 @@ def openGCODE_keepcoms(path: 'str', get_config = True):
                 line_nr += 1 #counts actual amount of moving lines
             if(get_config == True):
                 prusa_config = mm.read()
+                prusa_config = slicer_config(prusa_config)
                 return gcode_arr, prusa_config
             else:
                 return gcode_arr
 
-
+def openINI(path: 'str'):
+    pass
 
 # Testing Code:
 if __name__ == "__main__":     
