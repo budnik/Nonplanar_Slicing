@@ -94,24 +94,23 @@ def show_gcode_prusaslicer(sender, app_data, user_data):
                
 def calculate_button(sender, app_data, user_data):
     # if the paths are changed to a custom one
-    if (len(dpg.get_value("stl_text")) > 4) and( len(dpg.get_value("config_text")) > 4):
-        dpg.set_value("showtext_calculate_button", "calculation started")
-    
-    # else the Paths are changed to the default path
-    else:
-        dpg.set_value("showtext_calculate_button", "Info: Calculation started with default Path")
-        
+    if dpg.get_value("stl_text") == stl_path_dir_default :
         stl_dir = stl_default
         dpg.set_value("stl_text", stl_dir)
         dpg.set_value("checkbox_cad", True)
+    
+    if dpg.get_value("config_text") == config_path_dir_default:
         config_dir = config_default
         dpg.set_value("config_text", config_dir)
         dpg.set_value("checkbox_config", True)
     
+    dpg.set_value("showtext_calculate_button", "calculation started")
+        
+
     # Start with the calculation
     dpg.show_item("loading")
     orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-    filtered_surface = sf.create_surface(orig_stl,np.deg2rad(45))
+    filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(15))
     z_mean = np.average(filtered_surface[:,2])
     
 # -----------------------Function for slicing etc. here -----------------------
@@ -121,7 +120,7 @@ def calculate_button(sender, app_data, user_data):
             temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
             ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info', dpg.get_value("slicer_text"))
             orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
-            gc1.trans_gcode(orig_gcode, filtered_surface, config_string=config)
+            gc1.trans_gcode(orig_gcode, filtered_surface, limits, config_string=config)
             os.remove(temp_stl_path)
         
         if dpg.get_value("checkbox_case2"):
@@ -153,8 +152,10 @@ with dpg.file_dialog(directory_selector=False, show=False, callback=config_chose
     dpg.add_file_extension(".ini", color=(255, 255, 255, 255))
 
 # Custom Window with the corresponding buttons etc.
-with dpg.window(label="Slicer Settings", width=1000, height=500):
+with dpg.window(label="GCode Transformation", width=1000, height=500):
     
+    with dpg.group(horizontal=True):
+        dpg.add_text("------------------------------------ Select Path -----------------------------------------------")
     # Select the CAD File
     with dpg.group(horizontal=True):
         dpg.add_text("default:", tag="text_default_cad")
@@ -172,6 +173,17 @@ with dpg.window(label="Slicer Settings", width=1000, height=500):
         dpg.add_button(label="Select Prusaslicer Config", callback=lambda: dpg.show_item("slicer_config"), width=200)
         dpg.add_text("  Directory: ")
         dpg.add_text(config_dir, tag="config_text")
+        
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="Change Prusaslicer DIR", callback=lambda: dpg.show_item("slicer_select"), width=200)
+        dpg.add_text(" Current Directory: ")
+        dpg.add_text(prusaslicer_default_path, tag="slicer_text")
+    
+    with dpg.group(horizontal=True):
+        dpg.add_text("")
+        
+    with dpg.group(horizontal=True):
+        dpg.add_text("------------------------------------ Select Case -----------------------------------------------")
     
     # Select the Case with checkboxes
     with dpg.group(horizontal=True):
@@ -181,24 +193,23 @@ with dpg.window(label="Slicer Settings", width=1000, height=500):
         dpg.add_checkbox(label="     ", tag="checkbox_case1", callback=case1_marked, default_value=True)
         dpg.add_text("Case 2", tag="text_case2")
         dpg.add_checkbox(tag="checkbox_case2", callback=case2_marked)
+        
+    with dpg.group(horizontal=True):
+        dpg.add_text("")
+        
+    with dpg.group(horizontal=True):
+        dpg.add_text("------------------------------------ Start Calculation -----------------------------------------")
     
     # Select the Calculate Button
     with dpg.group(horizontal=True):   
-        dpg.add_button(label="Calculate GCode", callback=calculate_button )
-        dpg.add_loading_indicator(tag="loading", show=False, radius=1.5)
-        dpg.add_text("", tag="showtext_calculate_button")
-       
-    with dpg.group(horizontal=True):
+        dpg.add_button(label="Calculate GCode", callback=calculate_button)
         dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
         dpg.add_button(label="Open Nonplanar GCode", callback=show_gcode_prusaslicer)
         
-    with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------------------------------------------------------------------------------")
-    with dpg.group(horizontal=True):
-        dpg.add_button(label="Change Prusaslicer DIR", callback=lambda: dpg.show_item("slicer_select"), width=200)
-        dpg.add_text(" Current Directory: ")
-        dpg.add_text(prusaslicer_default_path, tag="slicer_text")
-        
+    with dpg.group(horizontal=True):        
+        dpg.add_loading_indicator(tag="loading", show=False, radius=1.5)
+        dpg.add_text("", tag="showtext_calculate_button")
+               
         
 #Tooltips: (hovering over Items to show additional Information)
     # Case 1 Infos
