@@ -6,7 +6,7 @@ import os
 # ----------------------------------------
 # Input: target: STL-File path (string), profile: INI-File path (string), userParameters: additional paramters (string)
 # Output: None
-def sliceSTL(target, profile, userParameters, userPath):
+def sliceSTL(target, profile, userParameters, userPath="C:\Program Files\Prusa3D\PrusaSlicer"):
     filename = "output.gcode"
     prusa_slicer_path = fr'"{userPath}\prusa-slicer-console.exe"'
     command = f'{prusa_slicer_path} --export-gcode {target} --output {filename} --load {profile} {userParameters}'
@@ -26,7 +26,7 @@ def repairSTL(target):
 # ----------------------------------------
 # Input: target: GCode-File path (string)
 # Output: None
-def viewGCODE(target, userPath):
+def viewGCODE(target, userPath="C:\Program Files\Prusa3D\PrusaSlicer"):
     prusa_path = fr'"{userPath}\prusa-gcodeviewer.exe"'
     command = f"{prusa_path} {target}"
     print(command)
