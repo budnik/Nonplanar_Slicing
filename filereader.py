@@ -106,7 +106,7 @@ class slicer_config:
             self.options_set.append(config_string[self.id + 3:].split(';')[0] if self.id >= 0 else ' ')
 
     def __str__(self):
-        return '; '.join(f"{option_name} = {option}" for option_name, option in zip(*[self.options_names,self.options_set]))
+        return '; prusaslicer_config = begin\n; ' + '; '.join(f"{option_name} = {option}" for option_name, option in zip(*[self.options_names,self.options_set])) + '; prusaslicer_config = end'
     
     def get_config_param(self,option: 'str'):
         return self.options_set[self.options_names.index(option)]
