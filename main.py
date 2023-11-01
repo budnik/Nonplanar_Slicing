@@ -21,7 +21,7 @@ if __name__ == "__main__":
         print('Fall 2')
         transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
         temp_stl_path = fr.writeSTL(transformed_stl)
-        ps.sliceSTL(temp_stl_path,prusa_config_path,'--info')
+        ps.sliceSTL(temp_stl_path,prusa_config_path,'--info','C:\Program Files\Prusa3D\PrusaSlicer')
         ps.repairSTL(temp_stl_path)
         os.remove(temp_stl_path)
         planar_gcode, prusa_generated_config = fr.openGCODE_keepcoms('output.gcode')
