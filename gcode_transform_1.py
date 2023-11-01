@@ -10,7 +10,7 @@ import numpy as np
 # Output: File in the explorer with the transformed Gcode
 
 
-def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', printer="DeltiQ2",config_string:'str'=False):
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]',limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
     fullbottomlayer = 4
     fulltoplayer = 4
     layerheight = 0.2           # in mm
@@ -18,9 +18,9 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     subg_resolution = 1         # in mm
     
     print("Calculating Surface Interpolation")
-    gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array)
+    gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array, limits)
     
-    zmesh = surface.create_surface_array(surface_array, resolution)
+    zmesh = surface.create_surface_array(surface_array, resolution, limits)
 
     
     file = open('nonplanar.gcode', 'w')
@@ -211,7 +211,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     
     print("GCode Transformation finished. Enjoy")
     if config_string != False:
-        file.write(config_string.decode('utf-8'))
+        file.write(config_string.__str__())
         
     file.close()
     return True
