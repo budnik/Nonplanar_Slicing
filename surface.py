@@ -40,7 +40,7 @@ def create_surface(stl_triangles, max_angle):
 
 ## Input:  points_to_interpolate       -> give the wanted interpolated Points in an [n,2] numpy Array
 #          reference_points            -> the given datapoints of the Surface [n, (x,y,z)]
-#          Method to interpolate       -> {‘linear’, ‘nearest’, ‘cubic’}
+#          Method to interpolate       -> {ï¿½linearï¿½, ï¿½nearestï¿½, ï¿½cubicï¿½}
 
 ## Use:    Interpolation of the given Points of the Surface with finite Points
 
@@ -76,7 +76,7 @@ def create_gradient(surface_data, limits=0):
    
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.5), np.arange(round(y_min, 1), round(y_max, 1), 0.5))
 
-    # Verwende griddata für die Interpolation
+    # Verwende griddata fï¿½r die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
 
     # Berechne die Gradienten
@@ -116,10 +116,28 @@ def create_surface_array(surface_data, resolution, limits=0):
    
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), resolution), np.arange(round(y_min, 1), round(y_max, 1), resolution))
 
-    # Verwende griddata für die Interpolation
+    # Verwende griddata fï¿½r die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
     
     return Zmesh
 
+## Input:   Numpy array  = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
 
+## Use:     Splits a single triangle into 4 smaller triangles
+
+## Output:  4 triangles
+def split_triangle_4(triangle: 'np.ndarray'):
+    points = triangle.reshape(-1,3)
+    ip1 = points[2] + (points[1]-points[2])/2
+    ip2 = points[3] + (points[2]-points[3])/2
+    ip3 = points[1] + (points[3]-points[1])/2
+    print(points[1],points[2],points[3])
+    print(ip1,ip2,ip3)
+    triangles = np.concatenate((np.concatenate((points[0],ip1,ip2,ip3)),
+                                np.concatenate((points[0],points[1],ip1,ip3)),
+                                np.concatenate((points[0],points[2],ip1,ip2)),
+                                np.concatenate((points[0],points[3],ip2,ip3))
+                                ))
+    triangles=triangles.reshape(-1,12)
+    return triangles
 
