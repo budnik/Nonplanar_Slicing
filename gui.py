@@ -110,7 +110,7 @@ def calculate_button(sender, app_data, user_data):
     # Start with the calculation
     dpg.show_item("loading")
     orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-    filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(15))
+    filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(45))
     z_mean = np.average(filtered_surface[:,2])
     
 # -----------------------Function for slicing etc. here -----------------------
