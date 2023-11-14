@@ -4,6 +4,7 @@ import numpy as np
 from numpy import linalg
 from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
 import matplotlib.pyplot as plt
+import scipy.ndimage
 
 
 
@@ -12,7 +13,8 @@ import matplotlib.pyplot as plt
 
 ## Use:     Calculates the angle between every normalvector and the horizontal plane
 
-## Output:  gives back 3 Columnvectors: 2 coordinates with the corresponding z value
+## Output:  surface_filtered = 3 Columnvectors: 2 coordinates with the corresponding z value
+#           limits = np.array with the values [xmin, xmax, ymin, ymax]
 
 def create_surface(stl_triangles, max_angle):
     
@@ -35,6 +37,31 @@ def create_surface(stl_triangles, max_angle):
     #   surface_filtered[x, y, z]
     
     return surface_filtered, limits
+
+
+## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
+           # maximum of the possible angle for the surface, here between the surface and the horizontal plane
+
+## Use:     Calculates the angle between every normalvector and the horizontal plane and extrapolates the nearest point of the surface (extrapolate)
+
+## Output:  gives back 3 Columnvectors: 2 coordinates with the corresponding z value
+
+def create_surface_extended(surface_filtered, limits, resolution):
+    
+    
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(limits[0], 1), round(limits[1], 1), resolution), np.arange(round(limits[2], 1), round(limits[3], 1), resolution))
+
+    Zmesh = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='cubic')
+    Zmesh[np.isnan(Zmesh)] = 0
+    Zmesh_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='nearest')
+    index = np.isclose(Zmesh, 0, 1e-15)
+    Zresult = Zmesh.copy()
+    Zresult[index] = Zmesh_ext[index]
+    
+    Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=5)
+    
+    
+    return Xmesh, Ymesh, Zresult
 
 
 
@@ -74,7 +101,7 @@ def create_gradient(surface_data, limits=0):
         y_max = np.max(surface_data[:,1])
         
    
-    Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), 0.5), np.arange(round(y_min, 1), round(y_max, 1), 0.5))
+    Xmesh, Ymesh = np.meshgrid(np.arange(np.round(x_min, 1), np.round(x_max, 1), 0.5), np.arange(np.round(y_min, 1), np.round(y_max, 1), 0.5))
 
     # Verwende griddata für die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
