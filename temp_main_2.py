@@ -1,22 +1,27 @@
-import filereader
+import filereader as fr
 import numpy as np
 import surface
-import gcode_transform_1
+import gcode_transform_1 as transform
+import matplotlib.pyplot as plt
+import prusa_slicer as ps
+from mpl_toolkits.mplot3d import Axes3D
 
 stl_pfad = "test_files/test_pa_outline_fein_2.stl"
-triangle_array = filereader.openSTL(stl_pfad)
-Oberflaeche, limits = surface.create_surface(triangle_array, np.pi / 3) # Winkel
+stl_pfad = "Welle.stl"
+stl_pfad = "test_files/Welle_Phase.stl"
+ini_pfad = "test_files/generic_config.ini"
+triangle_array = fr.openSTL(stl_pfad)
+config = fr.slicer_config(fr.openINI(ini_pfad))
 
-path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/output.gcode"
-gcode_raw, config = filereader.openGCODE_keepcoms(path_gcode, get_config=True)
+Oberflaeche, limits = surface.create_surface(triangle_array, np.deg2rad(50)) # Winkel
+xmesh, ymesh, zmesh = surface.create_surface_extended(Oberflaeche, limits, 0.05)
+printSetting = transform.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4)
+transformed_stl = transform.trans_stl(triangle_array, zmesh, limits, printSetting)
+stl_path = fr.writeSTL(transformed_stl)
+ps.repairSTL(stl_path)
 
-print(limits)
+# path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/output.gcode"
+# gcode_raw, config = fr.openGCODE_keepcoms(path_gcode, get_config=True)
 
-gcode_transform_1.trans_gcode(gcode_raw, Oberflaeche, limits, config_string=config)
 
-# -> x, y und z vektoren mit den zugehoerigen e und f- Werten in ein Array schreiben
-# -> Offset des GCodes erkennen, resp. bei X und Y = 0 slicen?
-# -> jeder G1 Code separat mit griddata dauert zu lange -> ganze Schicht zusammen in Griddata
-# -> Alle Daten in np Array speichern fuer performance
-# -> 
-
+# transform.trans_gcode(gcode_raw, Oberflaeche, limits, config_string=config)
