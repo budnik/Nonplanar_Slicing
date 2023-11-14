@@ -1,17 +1,28 @@
 import numpy as np
 import scipy
-import matplotlib.pyplot as plt
 import os
 import surface as sf
 from filereader import gcode_dtype
 import filereader as fr
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
+
+def triangle_area(triangle: 'np.ndarray'):
+    a = np.linalg.norm(triangle[3:6]-triangle[6:9])
+    b = np.linalg.norm(triangle[6:9]-triangle[9:12])
+    c = np.linalg.norm(triangle[9:12]-triangle[3:6])
+    s = (a + b + c) / 2
+    # calculate the area
+    area = np.sqrt(s*(s-a)*(s-b)*(s-c))
+    return area
 
 # Transforms a given stl file down, so that the top of the part is plane
 # ----------------------------------------
 # Input: STL-File np.ndarray, Filtered-Surface np.ndarray, method=[interpolate,mirror]
 # Output: Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the new stl
-def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray', method='interpolate'):
+def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBaseOffset: 'float', method='interpolate', resolution = 5):
+    print("Transforming...")
     if(method=='interpolate'):
         stl_normals = stl_data[:,:3].copy() #save normals
         stl_data = stl_data[:,3:].copy() #copy into new array
@@ -20,20 +31,28 @@ def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray', method='i
         height_interpolated_nearest = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='nearest') #nearest method to get rid of the NaNs
         height_interpolated[np.isnan(height_interpolated)] = height_interpolated_nearest[np.isnan(height_interpolated)] #replace all nans from cubic interpolation with nearest value
         stl_data[:,2] -= height_interpolated #shift interpolated  data down by some the z height at a certain point
-        stl_data[:,2] += np.min(stl_data[:,2]) #shift everything up so it sits on the z=0 plane
+        #stl_data[:,2] += np.min(stl_data[:,2]) #shift everything up so it sits on the z=0 plane
         stl_data = stl_data.reshape(-1,9) #reshape into array that can be written into STL
         stl_data = np.concatenate((stl_normals,stl_data),axis=1) #concatenate both arrays together
+        offset_id = np.less_equal(np.abs(stl_data[:,[5,8,11]]),1e-4)
+        offset = np.zeros_like(offset_id,dtype=float)
+        offset[offset_id] = planarBaseOffset
+        stl_data[:,[5,8,11]] -= offset
         return stl_data
 
     elif(method=='mirror'):
         stl_data[:,:3] = 0
         stl_data[:,[5,8,11]] = stl_data[:,[5,8,11]] * -1
-        stl_data[:,[5,8,11]] += np.min(stl_data[:,[5,8,11]])
+        offset_id = np.less_equal(np.abs(stl_data[:,[5,8,11]]),1e-4)
+        offset = np.zeros_like(offset_id,dtype=float)
+        offset[offset_id] = planarBaseOffset
+        stl_data[:,[5,8,11]] -= offset
+        #stl_data[:,[5,8,11]] += np.min(stl_data[:,[5,8,11]])
         return stl_data
     else:
         raise ValueError("Method mus be \"interpolate\" or \"mirror\"")
 
-def transformGCODE(gcode_data: 'gcode_dtype',stl_path: 'str', filtered_surface: 'np.ndarray', prusa_generated_config):
+def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', stl_path: 'str', filtered_surface: 'np.ndarray', prusa_generated_config):
     gcode_file = gcode_writer('temp_gcode.gcode')
     z_lowest = 0
     x = 0
@@ -65,21 +84,24 @@ def transformGCODE(gcode_data: 'gcode_dtype',stl_path: 'str', filtered_surface: 
                 z_new = z_old + (z-z_old)/length*i
                 if z_new < 0 : z_new = 0
                 gcode_file.set_line('G1',x_new,y_new,z_new,e_new,f_new)
-        row_old = row
     gcode_file.flush()
+    gcode_file.set_config(prusa_generated_config)
     gcode_file.stop()
 
     layer_height = 0.2
     zOffsetFac = 1
 
-    gcode_file2 = gcode_writer(stl_path)
     gcode_temp = fr.openGCODE_keepcoms('temp_gcode.gcode', get_config=False)
-    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] = gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'linear', fill_value = np.inf)
+    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] = gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'cubic', fill_value = np.inf)
     gcode_temp['Z'][np.isinf(gcode_temp['Z'])] = gcode_temp['Z'][np.isinf(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][np.isinf(gcode_temp['Z'])], gcode_temp['Y'][np.isinf(gcode_temp['Z'])]), 'nearest')
-    z_lowest = np.min(gcode_temp['Z'][~np.isnan(gcode_temp['E'])])
+    z_lowest = np.min(gcode_temp['Z'][~(np.logical_or(np.isnan(gcode_temp['E']),0 > gcode_temp['E']))])
     print('lowest z = ', z_lowest)
-    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + zOffsetFac * layer_height + layer_height
-    gcode_temp['Z'][np.less_equal(gcode_temp['Z'],(1+zOffsetFac)*layer_height)] = layer_height + layer_height
+    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + zOffsetFac * layer_height  + layer_height
+    #gcode_temp['Z'][np.less_equal(gcode_temp['Z'],(1+zOffsetFac)*layer_height+layer_height)] = layer_height + layer_height
+
+    gcode_temp = fr.insertBaseLayers(gcode_temp, planar_base_gcode)
+
+    gcode_file2 = gcode_writer(stl_path)
     for line in gcode_temp:
         gcode_file2.set_line(*line)
     gcode_file2.flush()
@@ -107,7 +129,7 @@ class gcode_writer:
             self.flush()
 
     def set_config(self, comment):
-        self.f.write(comment.__str__())
+        self.f.write(comment)
 
     def flush(self):
         for line in self.lines[0:self.currline]:

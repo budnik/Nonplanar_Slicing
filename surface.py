@@ -67,7 +67,7 @@ def create_surface_extended(surface_filtered, limits, resolution):
 
 ## Input:  points_to_interpolate       -> give the wanted interpolated Points in an [n,2] numpy Array
 #          reference_points            -> the given datapoints of the Surface [n, (x,y,z)]
-#          Method to interpolate       -> {‘linear’, ‘nearest’, ‘cubic’}
+#          Method to interpolate       -> {ï¿½linearï¿½, ï¿½nearestï¿½, ï¿½cubicï¿½}
 
 ## Use:    Interpolation of the given Points of the Surface with finite Points
 
@@ -103,7 +103,7 @@ def create_gradient(surface_data, limits=0):
    
     Xmesh, Ymesh = np.meshgrid(np.arange(np.round(x_min, 1), np.round(x_max, 1), 0.5), np.arange(np.round(y_min, 1), np.round(y_max, 1), 0.5))
 
-    # Verwende griddata für die Interpolation
+    # Verwende griddata fï¿½r die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
 
     # Berechne die Gradienten
@@ -143,10 +143,39 @@ def create_surface_array(surface_data, resolution, limits=0):
    
     Xmesh, Ymesh = np.meshgrid(np.arange(round(x_min, 1), round(x_max, 1), resolution), np.arange(round(y_min, 1), round(y_max, 1), resolution))
 
-    # Verwende griddata für die Interpolation
+    # Verwende griddata fï¿½r die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
     
     return Zmesh
+
+## Input:   Numpy array  = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
+
+## Use:     Splits a single triangle into 4 smaller triangles
+
+## Output:  4 triangles
+def split_triangle_4(triangle: 'np.ndarray'):
+    points = triangle.reshape(-1,3)
+    ip1 = points[2] + (points[1]-points[2])/2
+    ip2 = points[3] + (points[2]-points[3])/2
+    ip3 = points[1] + (points[3]-points[1])/2
+    triangles = np.concatenate((np.concatenate((points[0],ip1,ip2,ip3)),
+                                np.concatenate((points[0],points[1],ip1,ip3)),
+                                np.concatenate((points[0],points[2],ip1,ip2)),
+                                np.concatenate((points[0],points[3],ip2,ip3))
+                                ))
+    triangles=triangles.reshape(-1,12)
+    return triangles
+
+
+def upscale_stl(stl_data: 'np.ndarray', iterations = 1):
+    for j in range(iterations):
+        print(f'Upscaling -> {(100/iterations)*j:.{1}f}%')
+        stl_upscaled = np.empty((4*len(stl_data[:,0]),12))
+        for i,triangle in enumerate(stl_data):
+            stl_upscaled[i*4:(i*4)+4] = split_triangle_4(triangle)
+        stl_data = stl_upscaled
+    print('Upscaling -> 100.0%')
+    return stl_upscaled
 
 
 
