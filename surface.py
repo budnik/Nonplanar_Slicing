@@ -131,8 +131,6 @@ def split_triangle_4(triangle: 'np.ndarray'):
     ip1 = points[2] + (points[1]-points[2])/2
     ip2 = points[3] + (points[2]-points[3])/2
     ip3 = points[1] + (points[3]-points[1])/2
-    print(points[1],points[2],points[3])
-    print(ip1,ip2,ip3)
     triangles = np.concatenate((np.concatenate((points[0],ip1,ip2,ip3)),
                                 np.concatenate((points[0],points[1],ip1,ip3)),
                                 np.concatenate((points[0],points[2],ip1,ip2)),
@@ -140,4 +138,17 @@ def split_triangle_4(triangle: 'np.ndarray'):
                                 ))
     triangles=triangles.reshape(-1,12)
     return triangles
+
+
+def upscale_stl(stl_data: 'np.ndarray', iterations = 1):
+    for j in range(iterations):
+        print(f'Upscaling -> {(100/iterations)*j:.{1}f}%')
+        stl_upscaled = np.empty((4*len(stl_data[:,0]),12))
+        for i,triangle in enumerate(stl_data):
+            stl_upscaled[i*4:(i*4)+4] = split_triangle_4(triangle)
+        stl_data = stl_upscaled
+    print('Upscaling -> 100.0%')
+    return stl_upscaled
+
+
 
