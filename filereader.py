@@ -238,14 +238,14 @@ def openSTL(path: 'str'):
         except OSError as e:
             print(e)
         except STLEndingError as e:
+            bin_file.close()
             print(e)
         except STLFormatError as e:
+            bin_file.close()
             print(e)
         except Exception as e:
             print('Unexpected Error while reading file')
-            print(e)
-        finally:
-            bin_file.close()
+            print(e) 
     else:
         print(file_path, 'is not an STL File')
 
@@ -382,6 +382,19 @@ def openGCODE_keepcoms(path: 'str', get_config = True):
 def openINI(path: 'str'):
     with open(path,'r') as f:
         return f.read()
+
+def readBaseLayers(planarGCODE: 'gcode_dtype',numBaseLayers):
+    layer_changes_idx = np.where(planarGCODE['Instruction'] == ';LAYER_CHANGE')[0]
+    types_idx = np.where(np.core.defchararray.find(planarGCODE['Instruction'],';TYPE')!=-1)[0]
+    test = planarGCODE[layer_changes_idx[0]:types_idx[np.argmax(types_idx>(layer_changes_idx[numBaseLayers]))]]
+    return test
+    
+        
+def insertBaseLayers(planar_gcode,planar_base_gcode):
+    pre_first_layer, post_first_layer = np.split(planar_gcode,[np.argmax(planar_gcode['Instruction'] == ';LAYER_CHANGE')])
+    remove, after_base_layers = np.split(post_first_layer,[np.where(np.core.defchararray.find(post_first_layer['Instruction'],';TYPE')!=-1)[0][0]])
+    return np.concatenate((pre_first_layer,planar_base_gcode,after_base_layers))
+
 
 # Testing Code:
 if __name__ == "__main__":     
