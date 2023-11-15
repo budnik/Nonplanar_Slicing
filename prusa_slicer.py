@@ -18,9 +18,10 @@ def sliceSTL(target, profile, userParameters, userPath="C:\Program Files\Prusa3D
 # Input: target: STL-File path (string)
 # Output: None
 def repairSTL(target):
-    command = f'prusa-slicer-console.exe --export-stl {target} --repair --output {target}'
+    command = f'prusa-slicer-console.exe --export-stl {target} --repair --loglevel 0 --output {target}'
     print(command)
-    subprocess.run(command, shell=True)
+    subprocess.run(command, shell=True,stdout=subprocess.DEVNULL,
+    stderr=subprocess.STDOUT)
 
 # Opens the given STL-File in Prusa GCode-Viewer
 # ----------------------------------------
