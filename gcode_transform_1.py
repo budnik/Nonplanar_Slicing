@@ -14,6 +14,7 @@ class PrintInfo():
         self.fulltopheight = FullTopLayers * self.layerheight
         self.numfulllayer = FullBottomLayers + FullTopLayers    
         self.resolution = resolution_zmesh
+        self.ironing = bool(config.get_config_param('ironing'))
 
 
 # Resample and calculate
@@ -33,7 +34,6 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
     
     Output_array = np.zeros((stl.shape))
     Output_array[:, :3] = stl[:, :3]
-    zmin_surface = np.amin(surface_array[:,[5,8,11]])
     for k in range(0,3):
         Output_array[:,3*k+3] = stl[:,3*k+3]
         Output_array[:,3*k+4] = stl[:,3*k+4]
@@ -61,12 +61,13 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
 # Resample and calculate the transformed GCode according to the surface --> Curved Layer Adaptive  Slicing (CLAS)
 #----------------------------------------------------------------------
 # Input: Gcode in Arrayform ->  [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
+
 #        Computed Surface Array from surface.py -> .shape = [n,3] with its columns [x, y, z]
 #        Printer, now between "DeltiQ2" or "MK3"
 # Output: File in the explorer with the transformed Gcode
 
 
-def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', zmesh: 'np.ndarray[np.float]', file_info, limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]', zmesh: 'np.ndarray[np.float]', file_info, limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
     
     fullbottomlayer = file_info.fullbottomlayers
     fulltoplayer = file_info.fulltoplayers
@@ -74,8 +75,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
     resolution = file_info.resolution              # in mm
     subg_resolution = 1                            # in mm
     
-    print("Calculating Surface Interpolation")
-    gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array, limits)
+    
     #zmesh = surface.create_surface_array(surface_array, resolution, limits)
     
     file = open('nonplanar.gcode', 'w')

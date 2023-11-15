@@ -110,7 +110,7 @@ def calculate_button(sender, app_data, user_data):
     # Start with the calculation
     dpg.show_item("loading")
     
-# -----------------------Function for slicing etc. here -----------------------
+# ---------------------------------Function for slicing etc. here ---------------------------------------
     if os.path.exists(dpg.get_value("slicer_text")+"\prusa-slicer-console.exe"):
         if dpg.get_value("checkbox_case1"):
             # Here goes the calculations for Case 1
@@ -122,8 +122,11 @@ def calculate_button(sender, app_data, user_data):
             printSetting = gc1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
             # Calculate the Surface Array
             filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(40)) # Winkel
+            print("Calculating Surface Interpolation")
             # Calculate the nearest extrapolated points outside of the surface
             xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
+            # Calculate the gradient of the surface for extruding optimizing
+            gradx_mesh, grady_mesh, gradz = sf.create_gradient(filtered_surface, limits)
             # Transform the .stl for slicing
             transformed_stl = gc1.trans_stl(triangle_array, zmesh, limits, printSetting)
             # write the .stl to a temp file
@@ -135,7 +138,7 @@ def calculate_button(sender, app_data, user_data):
             # Load the sliced and generated .gcode in an array
             orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
             # Transform the gcode according to the Surface
-            gc1.trans_gcode(orig_gcode, filtered_surface, zmesh,  printSetting, limits, config_string=config)
+            gc1.trans_gcode(orig_gcode, gradz, zmesh,  printSetting, limits, config_string=config)
             # Delete the temp generated .stl
             os.remove(temp_stl_path)
         
