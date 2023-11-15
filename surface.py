@@ -24,6 +24,10 @@ def create_surface(stl_triangles, max_angle):
     limits[2] = np.amin([stl_triangles[:,4],stl_triangles[:,7], stl_triangles[:,10]])
     limits[3] = np.amax([stl_triangles[:,4],stl_triangles[:,7], stl_triangles[:,10]])
     
+    for i in range(0,4):
+        limits[i] = np.sign(limits[i]) * np.ceil(np.abs(limits[i]) + 0.5)
+    
+    
     u = stl_triangles[:,0:3]                        # Create an Array with the normalvector values
 
     c = u[:,2] / np.linalg.norm(u, axis=1)          # -> cosine of the angle

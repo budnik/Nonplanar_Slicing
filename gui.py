@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 demo_on = 0
 
 # Setup Default Paths if nothing is marked
-stl_default = "test_files/test_pa_outline_fein_2.stl"
+stl_default = "test_files/Welle_Phase.stl"
 config_default = "test_files/generic_config_Deltiq2.ini"
 
 # Create the window with its Context
@@ -109,22 +109,40 @@ def calculate_button(sender, app_data, user_data):
 
     # Start with the calculation
     dpg.show_item("loading")
-    orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-    filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(45))
-    z_mean = np.average(filtered_surface[:,2])
     
 # -----------------------Function for slicing etc. here -----------------------
     if os.path.exists(dpg.get_value("slicer_text")+"\prusa-slicer-console.exe"):
         if dpg.get_value("checkbox_case1"):
             # Here goes the calculations for Case 1
-            temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
+            # Open the .stl to the triangle Array
+            triangle_array = fr.openSTL(dpg.get_value("stl_text"))
+            # Get the Config as String to determine the layerheight etc.
+            config = fr.slicer_config(fr.openINI(dpg.get_value("config_text")))
+            # Define PrintInfo for Layerheight infos etc.
+            printSetting = gc1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
+            # Calculate the Surface Array
+            filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(40)) # Winkel
+            # Calculate the nearest extrapolated points outside of the surface
+            xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
+            # Transform the .stl for slicing
+            transformed_stl = gc1.trans_stl(triangle_array, zmesh, limits, printSetting)
+            # write the .stl to a temp file
+            temp_stl_path = fr.writeSTL(transformed_stl)
+            # repair damaged triangles in the .stl (wrong surface direction -> normalvector wrong)
+            ps.repairSTL(temp_stl_path)
+            # Slice the transformed .stl
             ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info', dpg.get_value("slicer_text"))
+            # Load the sliced and generated .gcode in an array
             orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
-            gc1.trans_gcode(orig_gcode, filtered_surface, limits, config_string=config)
+            # Transform the gcode according to the Surface
+            gc1.trans_gcode(orig_gcode, filtered_surface, zmesh,  printSetting, limits, config_string=config)
+            # Delete the temp generated .stl
             os.remove(temp_stl_path)
         
         if dpg.get_value("checkbox_case2"):
             # Here goes the calculations for Case 2
+            orig_stl = fr.openSTL(dpg.get_value("stl_text"))
+            filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(44))
             transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
             temp_stl_path = fr.writeSTL(transformed_stl)
             ps.sliceSTL(temp_stl_path,config_dir,'--info')
