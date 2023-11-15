@@ -8,6 +8,10 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 
+# Calculates the area of a triangle in 3d-space
+# ----------------------------------------
+# Input: Numpy array  = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the triangle to be caclulated
+# Output: scalar number of the area of the triangle
 def triangle_area(triangle: 'np.ndarray'):
     a = np.linalg.norm(triangle[3:6]-triangle[6:9])
     b = np.linalg.norm(triangle[6:9]-triangle[9:12])
@@ -52,12 +56,15 @@ def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBase
     else:
         raise ValueError("Method mus be \"interpolate\" or \"mirror\"")
 
-def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', stl_path: 'str', filtered_surface: 'np.ndarray', prusa_generated_config):
+def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', stl_path: 'str', planarBaseOffset: 'float', filtered_surface: 'np.ndarray', prusa_generated_config, layerHeight: 'float',):
+    #initializing gcode writer
     gcode_file = gcode_writer('temp_gcode.gcode')
+    #resetting initial values of variables
     z_lowest = 0
     x = 0
     y = 0
     z = 0
+    #looping trhough each line of gcode_data and splitting it up into 1mm steps
     for j, row in enumerate(gcode_data):
         if(row['Instruction'] != 'G1'):
             gcode_file.set_line(*row)
@@ -84,23 +91,35 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
                 z_new = z_old + (z-z_old)/length*i
                 if z_new < 0 : z_new = 0
                 gcode_file.set_line('G1',x_new,y_new,z_new,e_new,f_new)
+    #stopping gcode writer and temporarily save everything to disk
     gcode_file.flush()
     gcode_file.set_config(prusa_generated_config)
     gcode_file.stop()
 
-    layer_height = 0.2
-    zOffsetFac = 1
+    z_ironing = -0.02
+    corrIroning = 0.05
 
+    #reopening it and offsetting the height for every step
     gcode_temp = fr.openGCODE_keepcoms('temp_gcode.gcode', get_config=False)
-    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] = gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'cubic', fill_value = np.inf)
-    gcode_temp['Z'][np.isinf(gcode_temp['Z'])] = gcode_temp['Z'][np.isinf(gcode_temp['Z'])] + scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][np.isinf(gcode_temp['Z'])], gcode_temp['Y'][np.isinf(gcode_temp['Z'])]), 'nearest')
+    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] += scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'cubic', fill_value = np.inf)
+    gcode_temp['Z'][np.isinf(gcode_temp['Z'])] += scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][np.isinf(gcode_temp['Z'])], gcode_temp['Y'][np.isinf(gcode_temp['Z'])]), 'nearest')
+    #get everything back down to z=0
     z_lowest = np.min(gcode_temp['Z'][~(np.logical_or(np.isnan(gcode_temp['E']),0 > gcode_temp['E']))])
     print('lowest z = ', z_lowest)
-    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + zOffsetFac * layer_height  + layer_height
-    #gcode_temp['Z'][np.less_equal(gcode_temp['Z'],(1+zOffsetFac)*layer_height+layer_height)] = layer_height + layer_height
-
+    gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + planarBaseOffset
+    #create an array that is true after the comment ;TYPE=Ironing occured
+    ironing = (gcode_temp['Instruction'] == ';TYPE=Ironing')
+    if (~np.all(ironing == False)):
+        ironing = np.pad(np.trim_zeros(ironing,trim='b'),pad_width=(0,len(ironing)-len(np.trim_zeros(ironing,trim='b'))),mode='edge')
+        #add ironing offset
+        layerCount = np.count_nonzero(gcode_temp['Instruction'] == ';LAYER_CHANGE')
+        gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] += z_ironing * ironing - ironing * corrIroning * (gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] - layerCount * layerHeight)
+    
+    
+    #inserting the planar base layer before the first ;LAYER_CHANGE keyword
     gcode_temp = fr.insertBaseLayers(gcode_temp, planar_base_gcode)
 
+    #writing the final gcode file to disk
     gcode_file2 = gcode_writer(stl_path)
     for line in gcode_temp:
         gcode_file2.set_line(*line)
@@ -108,6 +127,12 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
     gcode_file2.set_config(prusa_generated_config)
     gcode_file2.stop()
 
+# CLASS: has an array of gcode lines with a settable batch size, that can be written to, the array gets written to gcode file on disk every time it is full
+# initialization: path: string of the path of the written gcode file, batch_size: size of the temporary array that saves the gcode lines (default 500), creates a file at the specified path, overwrites it in case it already exists
+# method set_line: takes a gcode line of type gcode_dtype and saves it to the temporary array, flushes if the temporary array is full
+# method set_config: takes a slicer_config object and writes the config string at to the file on disk
+# method flush: writes the temporary array to disk, even if it is not full
+# method stop: closes the file
 class gcode_writer:
     def __init__(self, path, batch_size = 500):
         self.batchsize = batch_size
