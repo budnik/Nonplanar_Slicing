@@ -104,6 +104,9 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
         y_offset = 105
 
     length = 0
+    z_ironing = 0
+    ironing = 0
+    corr_ironing = 0.05
     
     y_min = limits[2]
     x_min = limits[0]
@@ -137,6 +140,10 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
         z_raw_instruction = orig_gcode["Instruction"][i]
         if np.char.startswith(z_raw_instruction, ";Z:"):
             z_curr = float(z_raw_instruction.replace(";Z:", ""))
+            
+        if z_raw_instruction == ";TYPE:Ironing":
+            z_ironing = -0.02
+            ironing = 1
         
         if orig_gcode["Instruction"][i] == "G1":
             
@@ -195,10 +202,14 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                                 
                             #current planar layer is in the top full layer
                             if layernum > (maxlayernum - fulltoplayer):
-                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
+                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight) + z_ironing * corr_ironing * (interpol_z - maxlayernum * layerheight)
                             
                             if layernum > fullbottomlayer:
-                                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                                if ironing == True:
+                                    corr_factor = 1
+                                else:
+                                    corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                                
                                 actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
                                 
                             

@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 stl_pfad = "test_files/test_pa_outline_fein_2.stl"
 stl_pfad = "Welle.stl"
 stl_pfad = "test_files/Welle_Phase.stl"
-ini_pfad = "test_files/generic_config.ini"
+ini_pfad = "test_files/generic_config_Deltiq2.ini"
 
 triangle_array = fr.openSTL(stl_pfad)
 config = fr.slicer_config(fr.openINI(ini_pfad))
@@ -25,8 +25,8 @@ stl_path = fr.writeSTL(transformed_stl)
 
 
 
-# path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/output.gcode"
-# gcode_raw, config = fr.openGCODE_keepcoms(path_gcode, get_config=True)
+path_gcode = "C:/Users/zuerc/Documents/Informatik_Projekte/PA/PA23_wuem_346_Nonplanar/output.gcode"
+gcode_raw, config = fr.openGCODE_keepcoms(path_gcode, get_config=True)
 
 
-# transform.trans_gcode(gcode_raw, gradz, zmesh, printSetting, limits, config_string=config)
+transform.trans_gcode(gcode_raw, gradz, zmesh, printSetting, limits, config_string=config)
