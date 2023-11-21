@@ -14,7 +14,8 @@ demo_on = 0
 
 # Setup Default Paths if nothing is marked
 stl_default = "test_files/Welle_Phase.stl"
-config_default = "test_files/generic_config_Deltiq2.ini"
+stl_default = "test_files/test_pa_ironing.stl"
+config_default = "test_files/generic_config_Deltiq2_ironing_raft.ini"
 
 # Create the window with its Context
 dpg.create_context()
@@ -36,8 +37,7 @@ config_dir = "C:/ "
 stl_path_dir_default = stl_dir
 config_path_dir_default = config_dir
 
-
-
+max_angle_default = 40
 
 
 # Interupthandling if a button or similiar is activated
@@ -121,7 +121,7 @@ def calculate_button(sender, app_data, user_data):
             # Define PrintInfo for Layerheight infos etc.
             printSetting = gc1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
             # Calculate the Surface Array
-            filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(40)) # Winkel
+            filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
             print("Calculating Surface Interpolation")
             # Calculate the nearest extrapolated points outside of the surface
             xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
@@ -140,12 +140,12 @@ def calculate_button(sender, app_data, user_data):
             # Transform the gcode according to the Surface
             gc1.trans_gcode(orig_gcode, gradz, zmesh,  printSetting, limits, config_string=config)
             # Delete the temp generated .stl
-            os.remove(temp_stl_path)
+            #os.remove(temp_stl_path)
         
         if dpg.get_value("checkbox_case2"):
             # Here goes the calculations for Case 2
             orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-            filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(44))
+            filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(dpg.get_value('max_angle_input')))
             transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
             temp_stl_path = fr.writeSTL(transformed_stl)
             ps.sliceSTL(temp_stl_path,config_dir,'--info')
@@ -204,7 +204,7 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_text("")
         
     with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------ Select Case -----------------------------------------------")
+        dpg.add_text("------------------------------------ Slicing options -----------------------------------------------")
     
     # Select the Case with checkboxes
     with dpg.group(horizontal=True):
@@ -216,7 +216,8 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_checkbox(tag="checkbox_case2", callback=case2_marked)
         
     with dpg.group(horizontal=True):
-        dpg.add_text("")
+        dpg.add_text("Select the maximal printing angle:", tag ='text_max_angle')
+        dpg.add_input_int(tag = 'max_angle_input', default_value=max_angle_default, width=100)
         
     with dpg.group(horizontal=True):
         dpg.add_text("------------------------------------ Start Calculation -----------------------------------------")
@@ -250,6 +251,9 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
     with dpg.tooltip("text_default_config"):
         dpg.add_text("The default Path is:")
         dpg.add_text(config_default)
+        
+    with dpg.tooltip('text_max_angle'):
+        dpg.add_text("Angle between the horizontal plane and the surface")
         
 # Create the Window with custom Commands
 dpg.create_viewport(title='Nonplanar Slicing', width=1000, height=500)
