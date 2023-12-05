@@ -4,8 +4,6 @@ import os
 import surface as sf
 from filereader import gcode_dtype
 import filereader as fr
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
 
 
 # Calculates the area of a triangle in 3d-space
@@ -25,7 +23,7 @@ def triangle_area(triangle: 'np.ndarray'):
 # ----------------------------------------
 # Input: STL-File np.ndarray, Filtered-Surface np.ndarray, method=[interpolate,mirror]
 # Output: Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] of the new stl
-def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBaseOffset: 'float', method='interpolate', resolution = 5):
+def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBaseOffset: 'float', method='interpolate'):
     print("Transforming...")
     if(method=='interpolate'):
         stl_normals = stl_data[:,:3].copy() #save normals
@@ -33,7 +31,9 @@ def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBase
         stl_data = stl_data.reshape(-1,3) #reshape to treat as one vector
         height_interpolated = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='cubic') #cubic interpolation, generates some NaNs however
         height_interpolated_nearest = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='nearest') #nearest method to get rid of the NaNs
+        height_interpolated_nearest = scipy.ndimage.gaussian_filter(height_interpolated_nearest, sigma=4)
         height_interpolated[np.isnan(height_interpolated)] = height_interpolated_nearest[np.isnan(height_interpolated)] #replace all nans from cubic interpolation with nearest value
+
         stl_data[:,2] -= height_interpolated #shift interpolated  data down by some the z height at a certain point
         #stl_data[:,2] += np.min(stl_data[:,2]) #shift everything up so it sits on the z=0 plane
         stl_data = stl_data.reshape(-1,9) #reshape into array that can be written into STL
@@ -51,7 +51,6 @@ def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBase
         offset = np.zeros_like(offset_id,dtype=float)
         offset[offset_id] = planarBaseOffset
         stl_data[:,[5,8,11]] -= offset
-        #stl_data[:,[5,8,11]] += np.min(stl_data[:,[5,8,11]])
         return stl_data
     else:
         raise ValueError("Method mus be \"interpolate\" or \"mirror\"")
@@ -78,8 +77,8 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
             length = np.round(np.sqrt((x-x_old)**2 + (y-y_old)**2 + (z-z_old)**2),decimals=0)
             f_new = row['F']
             if (length<1.0):
-                gcode_file.set_line('G1',x,y,z,row['E'],row['F'])
-            elif(row['E'] != np.nan):
+                gcode_file.set_line('G1',np.nan,np.nan,np.nan,row['E'],row['F']) if(x==y==z==0) else gcode_file.set_line('G1',x,y,z,row['E'],row['F'])
+            elif((row['E'] != np.nan) and (row['E'] >= 0)):
                 e_new = row['E']/length
             elif(row['E'] == np.nan):
                 e_new = np.nan
@@ -96,25 +95,35 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
     gcode_file.set_config(prusa_generated_config)
     gcode_file.stop()
 
-    z_ironing = -0.02
-    corrIroning = 0.05
-
     #reopening it and offsetting the height for every step
     gcode_temp = fr.openGCODE_keepcoms('temp_gcode.gcode', get_config=False)
-    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] += scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'cubic', fill_value = np.inf)
-    gcode_temp['Z'][np.isinf(gcode_temp['Z'])] += scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][np.isinf(gcode_temp['Z'])], gcode_temp['Y'][np.isinf(gcode_temp['Z'])]), 'nearest')
+    zTrans = scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])]), 'cubic')
+    zTrans[np.isnan(zTrans)] = scipy.interpolate.griddata(filtered_surface[:,:2], filtered_surface[:,2], (gcode_temp['X'][~np.isnan(gcode_temp['Z'])][np.isnan(zTrans)], gcode_temp['Y'][~np.isnan(gcode_temp['Z'])][np.isnan(zTrans)]), 'nearest')
+    gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] += zTrans
+    
     #get everything back down to z=0
     z_lowest = np.min(gcode_temp['Z'][~(np.logical_or(np.isnan(gcode_temp['E']),0 > gcode_temp['E']))])
     print('lowest z = ', z_lowest)
     gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + planarBaseOffset
+    
     #create an array that is true after the comment ;TYPE=Ironing occured
-    ironing = (gcode_temp['Instruction'] == ';TYPE=Ironing')
+    ironing = (gcode_temp['Instruction'] == ';TYPE:Ironing')
     if (~np.all(ironing == False)):
         ironing = np.pad(np.trim_zeros(ironing,trim='b'),pad_width=(0,len(ironing)-len(np.trim_zeros(ironing,trim='b'))),mode='edge')
+        
         #add ironing offset
-        layerCount = np.count_nonzero(gcode_temp['Instruction'] == ';LAYER_CHANGE')
-        gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] += z_ironing * ironing - ironing * corrIroning * (gcode_temp['Z'][~np.isnan(gcode_temp['Z'])] - layerCount * layerHeight)
-    
+        gradX, gradY, gradZ = sf.create_gradient(filtered_surface)
+        points = np.concatenate(([gradX.flatten()],[gradY.flatten()]),axis=0)
+        values = gradZ.flatten()
+
+        gradZinterpolated = scipy.interpolate.griddata(points.T,values,(gcode_temp['X'][ironing][~np.isnan(gcode_temp['Z'][ironing])],gcode_temp['Y'][ironing][~np.isnan(gcode_temp['Z'][ironing])]),method='cubic')
+        
+        #funktioniert noch nicht, z höhe bleibt an enstscheidenden stellen Gleich
+        dn = 0.4
+        df = 0.5
+        dg = 0.5*dn+df
+        zcorr = dg*gradZinterpolated
+        gcode_temp['Z'][ironing][~np.isnan(gcode_temp['Z'][ironing])] += zcorr**1.5 + 0.05
     
     #inserting the planar base layer before the first ;LAYER_CHANGE keyword
     gcode_temp = fr.insertBaseLayers(gcode_temp, planar_base_gcode)

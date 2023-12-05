@@ -7,14 +7,17 @@ import os
 import transform as tf
 
 if __name__ == "__main__":
-    orig_stl_path = 'test_files/test_slope_pa_2.stl'
-    prusa_config_path = 'test_files/generic_config_Deltiq2_ironing.ini'
+    orig_stl_path = 'test_files/test_pa_outline_fein_2.stl'
+    prusa_config_path = 'test_files/generic_config_Deltiq2.ini'
     debug=True
     numPlanarBaseLayers = 2
 
+    ps.repairSTL(orig_stl_path)
     orig_stl = fr.openSTL(orig_stl_path)
-    upscaled_stl = sf.upscale_stl(orig_stl, 3)
-    filtered_surface, limits = sf.create_surface(upscaled_stl,np.deg2rad(80))
+    outline = sf.detectSortOutline(orig_stl)
+    upscaled_stl = sf.upscale_stl(orig_stl, 1)
+    filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(85),0.25,outline)
+
     z_mean = np.average(filtered_surface[:,2])
 
     print('Fall 2')
@@ -26,7 +29,7 @@ if __name__ == "__main__":
     planar_base_gcode, prusa_generated_config_planar = fr.openGCODE_keepcoms('output.gcode')
     base_layer_gcode = fr.readBaseLayers(planar_base_gcode,numPlanarBaseLayers)
 
-    transformed_stl = tf.projectSTL(stl_data=upscaled_stl,filtered_surface=filtered_surface,planarBaseOffset=0.0,method='interpolate',resolution = 2)
+    transformed_stl = tf.projectSTL(stl_data=upscaled_stl,filtered_surface=filtered_surface,planarBaseOffset=0.0,method='interpolate')
     temp_stl_path = fr.writeSTL(transformed_stl)
 
     ps.repairSTL(temp_stl_path)
