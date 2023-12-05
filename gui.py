@@ -13,8 +13,8 @@ import matplotlib.pyplot as plt
 demo_on = 0
 
 # Setup Default Paths if nothing is marked
-stl_default = "test_files/test_pa_outline_fein_2.stl"
-config_default = "test_files/generic_config_Deltiq2.ini"
+stl_default = "test_files/Welle_Phase.stl"
+config_default = "test_files/generic_config_Deltiq2_ironing_raft.ini"
 
 # Create the window with its Context
 dpg.create_context()
@@ -36,8 +36,9 @@ config_dir = "C:/ "
 stl_path_dir_default = stl_dir
 config_path_dir_default = config_dir
 
-
-
+max_angle_default = 40
+outline_offset_default = 3.5 # in mm
+outline_active = False
 
 
 # Interupthandling if a button or similiar is activated
@@ -77,6 +78,14 @@ def case2_marked(sender, app_data, user_data):
     else:
         dpg.set_value("checkbox_case2", True)
         
+def outline_offset_marked(sender, app_data, user_data):
+    if app_data:
+        dpg.show_item("outline_offset_value")
+    else:
+        dpg.hide_item("outline_offset_value")
+        
+        
+        
 def show_preview_surface(sender, app_data, user_data):
     current_stl_path = dpg.get_value("stl_text") 
     if current_stl_path == stl_path_dir_default:
@@ -109,22 +118,53 @@ def calculate_button(sender, app_data, user_data):
 
     # Start with the calculation
     dpg.show_item("loading")
-    orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-    filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(45))
-    z_mean = np.average(filtered_surface[:,2])
     
-# -----------------------Function for slicing etc. here -----------------------
+# ---------------------------------Function for slicing etc. here ---------------------------------------
     if os.path.exists(dpg.get_value("slicer_text")+"\prusa-slicer-console.exe"):
         if dpg.get_value("checkbox_case1"):
             # Here goes the calculations for Case 1
-            temp_stl_path = fr.writeSTL(fr.genBlock(orig_stl,z_mean))
+            # Open the .stl to the triangle Array
+            triangle_array = fr.openSTL(dpg.get_value("stl_text"))
+            # Get the Config as String to determine the layerheight etc.
+            config = fr.slicer_config(fr.openINI(dpg.get_value("config_text")))
+            # Define PrintInfo for Layerheight infos etc.
+            printSetting = gc1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
+            # Calculate the Surface Array
+            
+            print("Calculating Surface Interpolation")
+            if dpg.get_value("checkbox_outline_offset"):
+                points_sorted = sf.sort_contour(triangle_array)
+                Oberflaeche, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
+                surface_filtered = sf.offset_contour(points_sorted[:,0], points_sorted[:,1], Oberflaeche, dpg.get_value("outline_offset_value"))
+                xmesh, ymesh, zmesh = sf.create_surface_extended(surface_filtered, limits, printSetting.resolution)
+                gradx_mesh, grady_mesh, gradz = sf.create_gradient(Oberflaeche, limits)
+                
+            else:
+                filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
+                # Calculate the nearest extrapolated points outside of the surface
+                xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
+                # Calculate the gradient of the surface for extruding optimizing
+                gradx_mesh, grady_mesh, gradz = sf.create_gradient(filtered_surface, limits)
+            
+            # Transform the .stl for slicing
+            transformed_stl = gc1.trans_stl(triangle_array, zmesh, limits, printSetting)
+            # write the .stl to a temp file
+            temp_stl_path = fr.writeSTL(transformed_stl)
+            # repair damaged triangles in the .stl (wrong surface direction -> normalvector wrong)
+            ps.repairSTL(temp_stl_path)
+            # Slice the transformed .stl
             ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'--info', dpg.get_value("slicer_text"))
+            # Load the sliced and generated .gcode in an array
             orig_gcode, config = fr.openGCODE_keepcoms("output.gcode", get_config=True)
-            gc1.trans_gcode(orig_gcode, filtered_surface, limits, config_string=config)
-            os.remove(temp_stl_path)
+            # Transform the gcode according to the Surface
+            gc1.trans_gcode(orig_gcode, gradz, zmesh,  printSetting, limits, config_string=config)
+            # Delete the temp generated .stl
+            #os.remove(temp_stl_path)
         
         if dpg.get_value("checkbox_case2"):
             # Here goes the calculations for Case 2
+            orig_stl = fr.openSTL(dpg.get_value("stl_text"))
+            filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(dpg.get_value('max_angle_input')))
             transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
             temp_stl_path = fr.writeSTL(transformed_stl)
             ps.sliceSTL(temp_stl_path,config_dir,'--info')
@@ -183,7 +223,7 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_text("")
         
     with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------ Select Case -----------------------------------------------")
+        dpg.add_text("------------------------------------ Slicing options -----------------------------------------------")
     
     # Select the Case with checkboxes
     with dpg.group(horizontal=True):
@@ -195,7 +235,14 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_checkbox(tag="checkbox_case2", callback=case2_marked)
         
     with dpg.group(horizontal=True):
-        dpg.add_text("")
+        dpg.add_text("Select the maximal printing angle:", tag ='text_max_angle')
+        dpg.add_input_int(tag = 'max_angle_input', default_value=max_angle_default, width=100)
+        
+    with dpg.group(horizontal=True):
+        dpg.add_text("Add offset from outline")
+        dpg.add_checkbox(tag="checkbox_outline_offset", default_value=False, callback=outline_offset_marked)
+        dpg.add_text("    ")
+        dpg.add_input_float(label = "in mm", tag="outline_offset_value", default_value= outline_offset_default, show=False, width= 100)
         
     with dpg.group(horizontal=True):
         dpg.add_text("------------------------------------ Start Calculation -----------------------------------------")
@@ -203,7 +250,7 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
     # Select the Calculate Button
     with dpg.group(horizontal=True):   
         dpg.add_button(label="Calculate GCode", callback=calculate_button)
-        dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
+        #dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
         dpg.add_button(label="Open Nonplanar GCode", callback=show_gcode_prusaslicer)
         
     with dpg.group(horizontal=True):        
@@ -229,6 +276,9 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
     with dpg.tooltip("text_default_config"):
         dpg.add_text("The default Path is:")
         dpg.add_text(config_default)
+        
+    with dpg.tooltip('text_max_angle'):
+        dpg.add_text("Angle between the horizontal plane and the surface")
         
 # Create the Window with custom Commands
 dpg.create_viewport(title='Nonplanar Slicing', width=1000, height=500)

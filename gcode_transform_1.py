@@ -1,10 +1,11 @@
 import surface
 import numpy as np
 from dataclasses import dataclass
+import scipy.ndimage
 
 
 class PrintInfo():
-    def __init__(self, config, FullBottomLayers, FullTopLayers):
+    def __init__(self, config, FullBottomLayers, FullTopLayers, resolution_zmesh = 0.02):
         
         self.layerheight = float(config.get_config_param('layer_height'))
         self.fullbottomlayers = FullBottomLayers
@@ -12,6 +13,8 @@ class PrintInfo():
         self.fullbottomheight = FullBottomLayers * self.layerheight
         self.fulltopheight = FullTopLayers * self.layerheight
         self.numfulllayer = FullBottomLayers + FullTopLayers    
+        self.resolution = resolution_zmesh
+        self.ironing = bool(config.get_config_param('ironing'))
 
 
 # Resample and calculate
@@ -23,59 +26,58 @@ class PrintInfo():
 # Output: 
 def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]', transform_info):
     
-    NormHeight = np.amax(stl[:,[5,8,11]])
+    NormHeight = np.mean(surface_array[:,[5,8,11]])
     Layerheight = transform_info.layerheight
-    MaxLayerNum = NormHeight / Layerheight
-    FullBottomLayers = transform_info.fullbottomlayers
-    FullTopLayers = transform_info.fulltoplayers
     FullBottomHeight = transform_info.fullbottomheight
     FullTopHeight = transform_info.fulltopheight
+    resolution = transform_info.resolution
     
     Output_array = np.zeros((stl.shape))
+    Output_array[:, :3] = stl[:, :3]
     for k in range(0,3):
         Output_array[:,3*k+3] = stl[:,3*k+3]
         Output_array[:,3*k+4] = stl[:,3*k+4]
-        Z_Surface = surface_array[np.round((stl[:,3*k+4] - limits[2])).astype(int), np.round((stl[:,3*k+3] - limits[0])).astype(int)]
+        Z_Surface = surface_array[np.round((stl[:,3*k+4] - limits[2])*(1/resolution)).astype(int), np.round((stl[:,3*k+3] - limits[0])*(1/resolution)).astype(int)]
         Z_STL = stl[:,3*k+5]
         deltaZ = Z_Surface - Z_STL
         index_z_higher_fullbottom = Z_STL > FullBottomHeight
         index_deltaz_lower_fulltop = deltaZ <= FullTopHeight
-        Output_array[np.bitwise_and(index_deltaz_lower_fulltop, index_z_higher_fullbottom), 3*k+5] = NormHeight * deltaZ[np.bitwise_and(index_deltaz_lower_fulltop, index_z_higher_fullbottom)]
-        Output_array[np.bitwise_and(index_z_higher_fullbottom,np.bitwise_not(index_deltaz_lower_fulltop)), 3*k+5] = (1 - (deltaZ[np.bitwise_and(index_z_higher_fullbottom,np.bitwise_not(index_deltaz_lower_fulltop))] - FullTopHeight) / (Z_Surface[np.bitwise_and(index_z_higher_fullbottom,np.bitwise_not(index_deltaz_lower_fulltop))] - FullTopHeight)) * (NormHeight - FullTopHeight)
-        Output_array[np.bitwise_not(index_z_higher_fullbottom), 3*k+5] = Z_STL[np.bitwise_not(index_z_higher_fullbottom)]
-        # ------------this is the non parallelised structure!---------------
-        # if Z_STL > FullBottomHeight:
-        #     if deltaZ <= FullTopHeight:
-        #         Output_array[:,3*k+5] = NormHeight - deltaZ
-        #     else:
-        #         Output_array[:,3*k+5] = (1 - (deltaZ - FullTopHeight) / (Z_Surface - FullTopHeight)) * (NormHeight - FullTopHeight)
-        # else:
-        #     Output_array[:, 3*k+5] = Z_STL
-        index_negativ = np.where(Output_array[:,3*k+5] < 0)
+        
+        if1 = np.logical_and(index_deltaz_lower_fulltop, index_z_higher_fullbottom)
+        if2 = np.logical_and(index_z_higher_fullbottom,np.logical_not(index_deltaz_lower_fulltop))
+        if3 = np.logical_not(index_z_higher_fullbottom)
+        
+        Output_array[if1, 3*k+5] = NormHeight - deltaZ[if1]
+        Output_array[if2, 3*k+5] = (1 - (deltaZ[if2] - FullTopHeight) / (Z_Surface[if2] - FullTopHeight)) * (NormHeight - FullTopHeight)
+        Output_array[if3, 3*k+5] = Z_STL[if3]
+        
+        index_negativ = Output_array[:,3*k+5] < 0
         Output_array[index_negativ,3*k+5] = 0
+        index_to_high = Output_array[:,3*k+5] > NormHeight
+        Output_array[index_to_high,3*k+5] = NormHeight
        
     
     return Output_array
 
 
-# Resample and calculate the transformed GCode according to the surface --> Curved Adaptive Layer Slicing (CLAS)
+# Resample and calculate the transformed GCode according to the surface --> Curved Layer Adaptive  Slicing (CLAS)
 #----------------------------------------------------------------------
 # Input: Gcode in Arrayform ->  [NUMBER_MOVE_INSTRUCTIONS,1] with [_,:] = [('Instruction','<U30'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','i')]
+
 #        Computed Surface Array from surface.py -> .shape = [n,3] with its columns [x, y, z]
 #        Printer, now between "DeltiQ2" or "MK3"
 # Output: File in the explorer with the transformed Gcode
 
 
-def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
-    fullbottomlayer = 4
-    fulltoplayer = 4
-    layerheight = 0.2           # in mm
-    resolution = 0.02           # in mm
-    subg_resolution = 1         # in mm
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]', zmesh: 'np.ndarray[np.float]', file_info, limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
     
-    print("Calculating Surface Interpolation")
-    gradx_mesh, grady_mesh, gradz = surface.create_gradient(surface_array, limits)
-    xmesh, ymesh, zmesh = surface.create_surface_extended(surface_array, limits, resolution)
+    fullbottomlayer = file_info.fullbottomlayers
+    fulltoplayer = file_info.fulltoplayers
+    layerheight = file_info.layerheight            # in mm
+    resolution = file_info.resolution              # in mm
+    subg_resolution = 1                            # in mm
+    
+    
     #zmesh = surface.create_surface_array(surface_array, resolution, limits)
     
     file = open('nonplanar.gcode', 'w')
@@ -104,6 +106,9 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
         y_offset = 105
 
     length = 0
+    z_ironing = 0
+    ironing = 0
+    corr_ironing = 0.05
     
     y_min = limits[2]
     x_min = limits[0]
@@ -137,6 +142,10 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
         z_raw_instruction = orig_gcode["Instruction"][i]
         if np.char.startswith(z_raw_instruction, ";Z:"):
             z_curr = float(z_raw_instruction.replace(";Z:", ""))
+            
+        if z_raw_instruction == ";TYPE:Ironing":
+            z_ironing = -0.02
+            ironing = 1
         
         if orig_gcode["Instruction"][i] == "G1":
             
@@ -195,9 +204,13 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', surface_array: 'np.ndarray[n
                                 
                             #current planar layer is in the top full layer
                             if layernum > (maxlayernum - fulltoplayer):
-                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight)
+                                actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight) + z_ironing * corr_ironing * (interpol_z - maxlayernum * layerheight)
                             
                             if layernum > fullbottomlayer:
+                                # if ironing == True:
+                                #     corr_factor = 1
+                                # else:
+                                #     corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
                                 corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
                                 actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
                                 

@@ -15,3 +15,4 @@ test_files/test_pa_outline_fein_2_offset_out.txt
 test_files/test_pa_outline_fein_2_planar_out.txt
 test.py
 VID_20231115_151814858.mp4
+test_files/*.ini
