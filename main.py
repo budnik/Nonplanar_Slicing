@@ -7,7 +7,7 @@ import os
 import transform as tf
 
 if __name__ == "__main__":
-    orig_stl_path = 'test_files/test_pa_outline_fein_2.stl'
+    orig_stl_path = 'test_files/test_pa_ironing.stl'
     prusa_config_path = 'test_files/generic_config_Deltiq2.ini'
     debug=True
     numPlanarBaseLayers = 2
@@ -15,8 +15,11 @@ if __name__ == "__main__":
     ps.repairSTL(orig_stl_path)
     orig_stl = fr.openSTL(orig_stl_path)
     outline = sf.detectSortOutline(orig_stl)
-    upscaled_stl = sf.upscale_stl(orig_stl, 1)
-    filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(85),0.25,outline)
+    upscaled_stl = sf.upscale_stl(orig_stl, 2)
+    filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(80),0.05,outline)
+    surface, limits = sf.create_surface(upscaled_stl,np.deg2rad(80))
+    xmesh, ymesh, zmesh = sf.create_surface_extended(surface, limits, 0.05)
+    filtered_surface = np.concatenate(([xmesh.flatten()],[ymesh.flatten()],[zmesh.flatten()]),axis=0).T
 
     z_mean = np.average(filtered_surface[:,2])
 

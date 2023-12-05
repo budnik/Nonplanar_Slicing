@@ -49,7 +49,7 @@ def create_surface_without_outline(stl_triangles, max_angle, resolution, outline
     z_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], xy, method='nearest')
     index = np.isnan(z)
     z_result = z.copy()
-    #z_ext = scipy.ndimage.gaussian_filter(z_ext, sigma=2, mode = 'nearest')
+    z_ext = scipy.ndimage.gaussian_filter(z_ext, sigma=2, mode = 'nearest')
     z_result[index] = z_ext[index]
     return np.concatenate((xy,z_result.reshape(-1,1)),axis=1)
 
