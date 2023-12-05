@@ -16,8 +16,10 @@ if __name__ == "__main__":
     orig_stl = fr.openSTL(orig_stl_path)
     outline = sf.detectSortOutline(orig_stl)
     upscaled_stl = sf.upscale_stl(orig_stl, 2)
-    filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(80),0.05,outline)
-    surface, limits = sf.create_surface(upscaled_stl,np.deg2rad(80))
+
+    filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(85),0.25,outline) #usage with radius 
+
+    surface, limits = sf.create_surface(upscaled_stl,np.deg2rad(80)) #usage without radius
     xmesh, ymesh, zmesh = sf.create_surface_extended(surface, limits, 0.05)
     filtered_surface = np.concatenate(([xmesh.flatten()],[ymesh.flatten()],[zmesh.flatten()]),axis=0).T
 
