@@ -2,9 +2,10 @@
 from scipy.interpolate import griddata
 import numpy as np
 from numpy import linalg
-from scipy.spatial import ConvexHull, convex_hull_plot_2d, Delaunay
 import matplotlib.pyplot as plt
 import scipy.ndimage
+from scipy.spatial import distance
+from shapely.geometry import Polygon, Point
 
 
 
@@ -62,7 +63,7 @@ def create_surface_extended(surface_filtered, limits, resolution):
     Zresult = Zmesh.copy()
     Zresult[index] = Zmesh_ext[index]
     
-    Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=5)
+    Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=7)
     
     
     return Xmesh, Ymesh, Zresult
@@ -151,6 +152,78 @@ def create_surface_array(surface_data, resolution, limits=0):
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
     
     return Zmesh
+
+
+ 
+def sort_contour(triangle_array):
+    
+    testarr = ~np.bitwise_and.reduce((np.isclose(triangle_array[:,5::3],np.zeros_like(triangle_array[:,5::3]),1e-17)),axis=1) #detects lines where z is sufficiently close to 0
+    base_triangles = np.delete(triangle_array,testarr,axis=0) #gets rid of all lines where z is not within a specified tolerance to 0
+
+    top_triangles = base_triangles.copy()
+    top_triangles[:,2] *= -1
+    base_triangles[:,[5,8,11]] = 0
+
+    triangles_check = np.concatenate((base_triangles[:,[3,4,6,7]],base_triangles[:,[6,7,9,10]],base_triangles[:,[3,4,9,10]]),axis=0)
+    triangles_check = np.concatenate((triangles_check,triangles_check[:, [2, 3, 0, 1]]))
+
+    uniq,idx,count= np.unique(triangles_check,return_index=True,return_counts=True,axis=0)
+    count = count[idx.argsort()]
+    uniq = uniq[idx.argsort()]
+    uniq = uniq[np.logical_not((count-1).astype(bool))]
+    uniq = uniq[:len(uniq)//2]
+    contour_unsorted = np.concatenate((uniq[:, [0,1]], uniq[:,[2,3]]), axis=0)
+        
+        
+        
+    points = np.column_stack((contour_unsorted[:,0], contour_unsorted[:,1]))
+    dist_matrix = distance.cdist(points, points, 'euclidean')
+    
+    start_index = np.argmin(np.sum(dist_matrix, axis=1))
+    
+    sorted_indices = [start_index]
+    unsorted_indices = set(range(len(points)))
+    unsorted_indices.remove(start_index)
+    
+    while unsorted_indices:
+        current_index = sorted_indices[-1]
+        nearest_index = min(unsorted_indices, key=lambda i: dist_matrix[current_index, i])
+        sorted_indices.append(nearest_index)
+        unsorted_indices.remove(nearest_index)
+    
+    sorted_points = points[sorted_indices]
+    
+    return sorted_points
+
+
+def offset_contour(outline_x, outline_y, surface, offset_distance):
+
+    polygon_points = np.column_stack((outline_x.flatten(), outline_y.flatten()))
+    original_polygon = Polygon(polygon_points)
+
+    offset_polygon = original_polygon.buffer(-offset_distance)
+
+    points_to_compare = surface[:,:2]
+    points_inside_offset = [Point(point).within(offset_polygon) for point in points_to_compare]
+
+    filtered_points = surface[points_inside_offset]
+
+    reduced_contour_points = np.column_stack(offset_polygon.exterior.xy)
+    z_values_contour = griddata((surface[:,0], surface[:,1]), surface[:,2], (reduced_contour_points[:,0], reduced_contour_points[:,1]), 'cubic')
+    reduced_contour = np.zeros([reduced_contour_points.shape[0], 3])
+    reduced_contour[:,:2] = reduced_contour_points
+    reduced_contour[:,2] = z_values_contour
+    filtered_points = np.concatenate((filtered_points, reduced_contour), axis=0)
+
+    return filtered_points
+
+
+
+
+
+
+
+
 
 ## Input:   Numpy array  = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
 

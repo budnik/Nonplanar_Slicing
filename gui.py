@@ -14,7 +14,6 @@ demo_on = 0
 
 # Setup Default Paths if nothing is marked
 stl_default = "test_files/Welle_Phase.stl"
-stl_default = "test_files/test_pa_ironing.stl"
 config_default = "test_files/generic_config_Deltiq2_ironing_raft.ini"
 
 # Create the window with its Context
@@ -38,6 +37,8 @@ stl_path_dir_default = stl_dir
 config_path_dir_default = config_dir
 
 max_angle_default = 40
+outline_offset_default = 3.5 # in mm
+outline_active = False
 
 
 # Interupthandling if a button or similiar is activated
@@ -76,6 +77,14 @@ def case2_marked(sender, app_data, user_data):
         dpg.set_value("checkbox_case1", False)
     else:
         dpg.set_value("checkbox_case2", True)
+        
+def outline_offset_marked(sender, app_data, user_data):
+    if app_data:
+        dpg.show_item("outline_offset_value")
+    else:
+        dpg.hide_item("outline_offset_value")
+        
+        
         
 def show_preview_surface(sender, app_data, user_data):
     current_stl_path = dpg.get_value("stl_text") 
@@ -121,12 +130,22 @@ def calculate_button(sender, app_data, user_data):
             # Define PrintInfo for Layerheight infos etc.
             printSetting = gc1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
             # Calculate the Surface Array
-            filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
+            
             print("Calculating Surface Interpolation")
-            # Calculate the nearest extrapolated points outside of the surface
-            xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
-            # Calculate the gradient of the surface for extruding optimizing
-            gradx_mesh, grady_mesh, gradz = sf.create_gradient(filtered_surface, limits)
+            if dpg.get_value("checkbox_outline_offset"):
+                points_sorted = sf.sort_contour(triangle_array)
+                Oberflaeche, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
+                surface_filtered = sf.offset_contour(points_sorted[:,0], points_sorted[:,1], Oberflaeche, dpg.get_value("outline_offset_value"))
+                xmesh, ymesh, zmesh = sf.create_surface_extended(surface_filtered, limits, printSetting.resolution)
+                gradx_mesh, grady_mesh, gradz = sf.create_gradient(Oberflaeche, limits)
+                
+            else:
+                filtered_surface, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
+                # Calculate the nearest extrapolated points outside of the surface
+                xmesh, ymesh, zmesh = sf.create_surface_extended(filtered_surface, limits, printSetting.resolution)
+                # Calculate the gradient of the surface for extruding optimizing
+                gradx_mesh, grady_mesh, gradz = sf.create_gradient(filtered_surface, limits)
+            
             # Transform the .stl for slicing
             transformed_stl = gc1.trans_stl(triangle_array, zmesh, limits, printSetting)
             # write the .stl to a temp file
@@ -220,12 +239,18 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_input_int(tag = 'max_angle_input', default_value=max_angle_default, width=100)
         
     with dpg.group(horizontal=True):
+        dpg.add_text("Add offset from outline")
+        dpg.add_checkbox(tag="checkbox_outline_offset", default_value=False, callback=outline_offset_marked)
+        dpg.add_text("    ")
+        dpg.add_input_float(label = "in mm", tag="outline_offset_value", default_value= outline_offset_default, show=False, width= 100)
+        
+    with dpg.group(horizontal=True):
         dpg.add_text("------------------------------------ Start Calculation -----------------------------------------")
     
     # Select the Calculate Button
     with dpg.group(horizontal=True):   
         dpg.add_button(label="Calculate GCode", callback=calculate_button)
-        dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
+        #dpg.add_button(label="Show Surface preview", callback=show_preview_surface)
         dpg.add_button(label="Open Nonplanar GCode", callback=show_gcode_prusaslicer)
         
     with dpg.group(horizontal=True):        

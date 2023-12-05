@@ -53,6 +53,8 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
         
         index_negativ = Output_array[:,3*k+5] < 0
         Output_array[index_negativ,3*k+5] = 0
+        index_to_high = Output_array[:,3*k+5] > NormHeight
+        Output_array[index_to_high,3*k+5] = NormHeight
        
     
     return Output_array
@@ -205,11 +207,11 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                                 actual_g_line[:,2] = interpol_z - ((maxlayernum - layernum) * layerheight) + z_ironing * corr_ironing * (interpol_z - maxlayernum * layerheight)
                             
                             if layernum > fullbottomlayer:
-                                if ironing == True:
-                                    corr_factor = 1
-                                else:
-                                    corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
-                                
+                                # if ironing == True:
+                                #     corr_factor = 1
+                                # else:
+                                #     corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
                                 actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
                                 
                             
