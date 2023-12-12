@@ -117,6 +117,22 @@ def create_surface_extended(surface_filtered, limits, resolution):
     
     return Xmesh, Ymesh, Zresult
 
+def create_surface_extended_case1(surface_filtered, limits, resolution):
+    
+    
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(limits[0], 1), round(limits[1], 1), resolution), np.arange(round(limits[2], 1), round(limits[3], 1), resolution))
+
+    Zmesh = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='cubic')
+    Zmesh[np.isnan(Zmesh)] = 0
+    Zmesh_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='nearest')
+    index = np.isclose(Zmesh, 0, 1e-15)
+    Zresult = Zmesh.copy()
+    Zresult[index] = Zmesh_ext[index]
+    
+    Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=7)
+    
+    
+    return Xmesh, Ymesh, Zresult
 
 
 ## Input:  points_to_interpolate       -> give the wanted interpolated Points in an [n,2] numpy Array
