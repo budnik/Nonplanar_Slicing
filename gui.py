@@ -38,6 +38,7 @@ config_path_dir_default = config_dir
 max_angle_default = 40
 outline_offset_default = 3.5 # in mm
 outline_active = False
+default_planar_baselayer = 2
 
 
 # Interupthandling if a button or similiar is activated
@@ -68,12 +69,16 @@ def default_config_path(sender, app_data, user_data):
 def case1_marked(sender, app_data, user_data):
     if app_data:
         dpg.set_value("checkbox_case2", False)
+        dpg.hide_item("text_planar_baselayer")
+        dpg.hide_item("planar_baselayer")
     else:
         dpg.set_value("checkbox_case1", True)
     
 def case2_marked(sender, app_data, user_data):
     if app_data:
         dpg.set_value("checkbox_case1", False)
+        dpg.show_item("text_planar_baselayer")
+        dpg.show_item("planar_baselayer")
     else:
         dpg.set_value("checkbox_case2", True)
         
@@ -135,7 +140,7 @@ def calculate_button(sender, app_data, user_data):
                 points_sorted = sf.sort_contour(triangle_array)
                 Oberflaeche, limits = sf.create_surface(triangle_array, np.deg2rad(dpg.get_value('max_angle_input'))) # Winkel
                 surface_filtered = sf.offset_contour(points_sorted[:,0], points_sorted[:,1], Oberflaeche, dpg.get_value("outline_offset_value"))
-                xmesh, ymesh, zmesh = sf.create_surface_extended(surface_filtered, limits, printSetting.resolution)
+                xmesh, ymesh, zmesh = sf.create_surface_extended_case1(surface_filtered, limits, printSetting.resolution)
                 gradx_mesh, grady_mesh, gradz = sf.create_gradient(Oberflaeche, limits)
                 
             else:
@@ -162,14 +167,37 @@ def calculate_button(sender, app_data, user_data):
         
         if dpg.get_value("checkbox_case2"):
             # Here goes the calculations for Case 2
+            
+            ps.repairSTL(dpg.get_value("stl_text"))
             orig_stl = fr.openSTL(dpg.get_value("stl_text"))
-            filtered_surface, limits = sf.create_surface(orig_stl,np.deg2rad(dpg.get_value('max_angle_input')))
-            transformed_stl = tf.projectSTL(orig_stl,filtered_surface,method='mirror')
+            outline = sf.detectSortOutline(orig_stl)
+            upscaled_stl = sf.upscale_stl(orig_stl, 2)
+
+            filtered_surface = sf.create_surface_without_outline(upscaled_stl,np.deg2rad(dpg.get_value('max_angle_input')),0.25,outline) #usage with radius 
+
+            surface, limits = sf.create_surface(upscaled_stl,np.deg2rad(dpg.get_value('max_angle_input'))) #usage without radius
+            xmesh, ymesh, zmesh = sf.create_surface_extended(surface, limits, 0.05)
+            filtered_surface = np.concatenate(([xmesh.flatten()],[ymesh.flatten()],[zmesh.flatten()]),axis=0).T
+
+            z_mean = np.average(filtered_surface[:,2])
+
+            print('Fall 2')
+            ini_config = fr.slicer_config(fr.openINI(dpg.get_value("config_text")))
+            layer_height = ini_config.get_config_param('layer_height')
+            planarBaseOffset = dpg.get_value('planar_baselayer') * float(layer_height)
+
+            ps.sliceSTL(dpg.get_value("stl_text"),dpg.get_value("config_text"),'--skirts 2 --skirt-height 2 --skirt-distance 6','C:\Program Files\Prusa3D\PrusaSlicer')
+            planar_base_gcode, prusa_generated_config_planar = fr.openGCODE_keepcoms('output.gcode')
+            base_layer_gcode = fr.readBaseLayers(planar_base_gcode, dpg.get_value('planar_baselayer'))
+
+            transformed_stl = tf.projectSTL(stl_data=upscaled_stl,filtered_surface=filtered_surface,planarBaseOffset=0.0,method='interpolate')
             temp_stl_path = fr.writeSTL(transformed_stl)
-            ps.sliceSTL(temp_stl_path,config_dir,'--info')
+
             ps.repairSTL(temp_stl_path)
-            os.remove(temp_stl_path)
-            planar_gcode = fr.openGCODE('output.gcode')
+            ps.sliceSTL(temp_stl_path,dpg.get_value("config_text"),'','C:\Program Files\Prusa3D\PrusaSlicer')
+            planar_gcode, prusa_generated_config = fr.openGCODE_keepcoms('output.gcode')
+            tf.transformGCODE(planar_gcode, base_layer_gcode, dpg.get_value("stl_text"), planarBaseOffset,filtered_surface, prusa_generated_config, layer_height)
+            
 
         # finishing informations for the User
         dpg.hide_item("loading")
@@ -194,7 +222,7 @@ with dpg.file_dialog(directory_selector=False, show=False, callback=config_chose
 with dpg.window(label="GCode Transformation", width=1000, height=500):
     
     with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------ Select Path -----------------------------------------------")
+        dpg.add_text("------------------------------------ Select Path -------------------------------------------------")
     # Select the CAD File
     with dpg.group(horizontal=True):
         dpg.add_text("default:", tag="text_default_cad")
@@ -222,7 +250,7 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_text("")
         
     with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------ Slicing options -----------------------------------------------")
+        dpg.add_text("----------------------------------- Slicing options ----------------------------------------------")
     
     # Select the Case with checkboxes
     with dpg.group(horizontal=True):
@@ -232,6 +260,9 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_checkbox(label="     ", tag="checkbox_case1", callback=case1_marked, default_value=True)
         dpg.add_text("Case 2", tag="text_case2")
         dpg.add_checkbox(tag="checkbox_case2", callback=case2_marked)
+        
+        dpg.add_text('   Set numbers of planar baselayer', show=False, tag='text_planar_baselayer')
+        dpg.add_input_int(tag = 'planar_baselayer', default_value=default_planar_baselayer, width=100, show=False)
         
     with dpg.group(horizontal=True):
         dpg.add_text("Select the maximal printing angle:", tag ='text_max_angle')
@@ -244,7 +275,7 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         dpg.add_input_float(label = "in mm", tag="outline_offset_value", default_value= outline_offset_default, show=False, width= 100)
         
     with dpg.group(horizontal=True):
-        dpg.add_text("------------------------------------ Start Calculation -----------------------------------------")
+        dpg.add_text("---------------------------------- Start Calculation ---------------------------------------------")
     
     # Select the Calculate Button
     with dpg.group(horizontal=True):   
