@@ -10,11 +10,10 @@ import transform as tf
 import platform
 import matplotlib.pyplot as plt
 
-demo_on = 0
 
 # Setup Default Paths if nothing is marked
 stl_default = "test_files/Welle_Phase.stl"
-config_default = "test_files/generic_config_Deltiq2_ironing_raft.ini"
+config_default = "test_files/generic_config_Deltiq2.ini"
 
 # Create the window with its Context
 dpg.create_context()
@@ -27,7 +26,7 @@ if os_current == "Windows":
     prusaslicer_default_path = "C:\Program Files\Prusa3D\PrusaSlicer"
     
 if os_current == "Darwin":
-    prusaslicer_default_path = 'Use "Change Prusaslicer Path" for defining Path'
+    prusaslicer_default_path = 'Use "Change Prusaslicer DIR" for defining Path'
 
 # Standard comment as path
 stl_dir = "C:/ "
@@ -261,11 +260,14 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
 #Tooltips: (hovering over Items to show additional Information)
     # Case 1 Infos
     with dpg.tooltip("text_case1"):
-            dpg.add_text("tbd: Hier kommt die Beschreibung von Fall 1 hinein")
+            dpg.add_text("Case 1 scales a sliced and transformed .stl depending on the surface\n The Layerheight is calculated depending on the surface its mean height\nSurfacepoints above the mean get stretched and those below get compressed")
     
     # Case 2 Infos      
     with dpg.tooltip("text_case2"):
-            dpg.add_text("tbd: Hier kommt die Beschreibung von Fall 2 hinein")
+            dpg.add_text("Case 2 transforms the gcode of the mirrored .stl\n The Layerheight is constant but every layer is parallel to the surface\n The original .stl gets mirrored upside down and transformed, until the bottom is flat")
+            
+    with dpg.tooltip("slicer_text"):
+            dpg.add_text("Add the Path to the folder where the prusa-slicer.exe is located. \nExample \Prusa3D\PrusaSlicer\prusa-slicer.exe -> Path = \Prusa3D\PrusaSlicer ")
        
     # Default Path for CAD Infos     
     with dpg.tooltip("text_default_cad"):
@@ -282,13 +284,6 @@ with dpg.window(label="GCode Transformation", width=1000, height=500):
         
 # Create the Window with custom Commands
 dpg.create_viewport(title='Nonplanar Slicing', width=1000, height=500)
-
-#--------------------------------
-# Delete late this rows...
-# show the demo -> What is possible
-if demo_on == 1:
-    demo.show_demo()
-#--------------------------------   
     
 # Create the window and show it to the user
 dpg.setup_dearpygui()

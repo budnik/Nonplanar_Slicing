@@ -23,7 +23,7 @@ class PrintInfo():
 #               surface_array   = Mesh of the interpolated z Values
 #               limits          = np.array with the values [xmin, xmax, ymin, ymax]
 #               transform_info  = Class Object from Class PrintInfo()
-# Output: 
+# Output:       Transformed stl with a planar surface, except the nondetected surface points
 def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]', transform_info):
     
     NormHeight = np.mean(surface_array[:,[5,8,11]])
@@ -33,10 +33,14 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
     resolution = transform_info.resolution
     
     Output_array = np.zeros((stl.shape))
+    # Copy the normalvector to the output array
     Output_array[:, :3] = stl[:, :3]
     for k in range(0,3):
+        # copy the x values of the given stl
         Output_array[:,3*k+3] = stl[:,3*k+3]
+        # copy the y values into the output stl
         Output_array[:,3*k+4] = stl[:,3*k+4]
+        
         Z_Surface = surface_array[np.round((stl[:,3*k+4] - limits[2])*(1/resolution)).astype(int), np.round((stl[:,3*k+3] - limits[0])*(1/resolution)).astype(int)]
         Z_STL = stl[:,3*k+5]
         deltaZ = Z_Surface - Z_STL
@@ -49,7 +53,7 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
         
         Output_array[if1, 3*k+5] = NormHeight - deltaZ[if1]
         Output_array[if2, 3*k+5] = (1 - (deltaZ[if2] - FullTopHeight) / (Z_Surface[if2] - FullTopHeight)) * (NormHeight - FullTopHeight)
-        Output_array[if3, 3*k+5] = Z_STL[if3]
+        Output_array[if3, 3*k+5] = Z_STL[if3]      
         
         index_negativ = Output_array[:,3*k+5] < 0
         Output_array[index_negativ,3*k+5] = 0
