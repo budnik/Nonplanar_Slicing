@@ -104,14 +104,13 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     
     x_offset = 0
     y_offset = 0
-    
+    # creates an Offset depending of the printer
     if printer == "MK3":
         x_offset = 125
         y_offset = 105
 
     length = 0
     z_ironing = 0
-    ironing = 0
     corr_ironing = 0.05
     
     y_min = limits[2]
@@ -120,7 +119,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     # Calculate the maximal layer number
     z_heights = orig_gcode["Instruction"][np.char.startswith(orig_gcode["Instruction"], ";Z:")]
     z_max = float(max(np.char.replace(z_heights, ";Z:", "")) ) 
-    
+    # calculate the final layer numbers
     maxlayernum = np.round((z_max / layerheight),0).astype(int)
     
     numline = orig_gcode.shape[0]
@@ -132,12 +131,12 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     for i in range(0, numline):         # Loop over every Line in the original GCode
         
         #Overview how long it will take :)
-        teiler = np.round((numline / 4),0)
-        mod_i = i % teiler
+        divider = np.round((numline / 4),0)
+        mod_i = i % divider
         if mod_i == 0:
-            procent = np.round(i / numline * 100, 0)
+            percent = np.round(i / numline * 100, 0)
             
-            print("Progress: ", procent, "%")
+            print("Progress: ", percent, "%")
             
         if i == numline:
             print("Progress: 100.0%")
@@ -149,7 +148,6 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
             
         if z_raw_instruction == ";TYPE:Ironing":
             z_ironing = -0.02
-            ironing = 1
         
         if orig_gcode["Instruction"][i] == "G1":
             

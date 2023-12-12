@@ -35,6 +35,16 @@ def detectSortOutline(stl_triangles: 'np.ndarray[np.float]'):
             uniq[idr2[0],:] = np.nan
     return outline
 
+## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
+#           Maximum of the possible angle for the surface, here between the surface and the horizontal plane
+#           Resolution of the meshgrid
+#           Sorted outline from the "detectSortOutline()" function
+
+## Use:     Creates the surface
+
+## Output:  surface_filtered = 3 Columnvectors: 2 coordinates with the corresponding z value
+#           limits = np.array with the values [xmin, xmax, ymin, ymax]
+
 
 def create_surface_without_outline(stl_triangles, max_angle, resolution, outline):
     surface_filtered, limits = create_surface(stl_triangles, max_angle)
@@ -116,6 +126,8 @@ def create_surface_extended(surface_filtered, limits, resolution):
     
     
     return Xmesh, Ymesh, Zresult
+
+# Same as "create_surface_extended" but specific for case / method 1
 
 def create_surface_extended_case1(surface_filtered, limits, resolution):
     
