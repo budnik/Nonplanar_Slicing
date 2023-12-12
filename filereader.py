@@ -392,8 +392,8 @@ def readBaseLayers(planarGCODE: 'gcode_dtype',numBaseLayers):
         
 def insertBaseLayers(planar_gcode,planar_base_gcode):
     pre_first_layer, post_first_layer = np.split(planar_gcode,[np.argmax(planar_gcode['Instruction'] == ';LAYER_CHANGE')])
-    remove, after_base_layers = np.split(post_first_layer,[np.where(np.core.defchararray.find(post_first_layer['Instruction'],';TYPE')!=-1)[0][0]])
-    return np.concatenate((pre_first_layer,planar_base_gcode,after_base_layers))
+    #remove, after_base_layers = np.split(post_first_layer,[np.where(np.core.defchararray.find(post_first_layer['Instruction'],';TYPE')!=-1)[0][0]])
+    return np.concatenate((pre_first_layer,planar_base_gcode,post_first_layer))
 
 
 # Testing Code:

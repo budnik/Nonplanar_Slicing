@@ -6,8 +6,52 @@ import matplotlib.pyplot as plt
 import scipy.ndimage
 from scipy.spatial import distance
 from shapely.geometry import Polygon, Point
+import plotly.graph_objects as go
+import shapely
+
+def detectSortOutline(stl_triangles: 'np.ndarray[np.float]'):
+    #stl_triangles[:,[5,8,11]] = 0
+    testarr = ~np.bitwise_and.reduce((np.isclose(stl_triangles[:,5::3],np.zeros_like(stl_triangles[:,5::3]),atol=0.01)),axis=1) #detects lines where z is sufficiently close to 0
+    base_triangles = np.delete(stl_triangles,testarr,axis=0) #gets rid of all lines where z is not within a specified tolerance to 0
+
+    triangles_check = np.concatenate((base_triangles[:,[3,4,6,7]],base_triangles[:,[6,7,9,10]],base_triangles[:,[3,4,9,10]]),axis=0)
+    triangles_check = np.concatenate((triangles_check,triangles_check[:, [2, 3, 0, 1]]))
+
+    uniq,idx,count= np.unique(triangles_check,return_index=True,return_counts=True,axis=0)
+    count = count[idx.argsort()]
+    uniq = uniq[idx.argsort()]
+    uniq = uniq[np.logical_not((count-1).astype(bool))]
+    uniq = uniq[:len(uniq)//2]
+    outline = np.empty((len(uniq[:,0])+1,2))
+    outline[0] = uniq[0,0:2]
+    for i, point in enumerate(outline):   #check where the points occur again
+        idr1 =  np.where(np.all(uniq[:,:2] == point,axis=1))[0]
+        idr2 =  np.where(np.all(uniq[:,2:] == point,axis=1))[0]
+        if idr1.size != 0:
+            outline[i+1] = uniq[idr1[0],2:]
+            uniq[idr1[0],:] = np.nan
+        elif idr2.size != 0:
+            outline[i+1] = uniq[idr2[0],:2]
+            uniq[idr2[0],:] = np.nan
+    return outline
 
 
+def create_surface_without_outline(stl_triangles, max_angle, resolution, outline):
+    surface_filtered, limits = create_surface(stl_triangles, max_angle)
+    Xmesh, Ymesh = np.meshgrid(np.arange(round(limits[0], 1), round(limits[1], 1), resolution), np.arange(round(limits[2], 1), round(limits[3], 1), resolution))
+    xy = np.concatenate(([Xmesh.flatten()],[Ymesh.flatten()]),axis=0).T
+    z = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], xy, method='cubic',rescale=True)
+    outline = shapely.Polygon(outline)
+    outline = outline.buffer(-0.2,join_style=2)
+    Points = shapely.points(xy)
+    isinside = shapely.within(Points,outline)
+    z[~isinside] = np.nan
+    z_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], xy, method='nearest')
+    index = np.isnan(z)
+    z_result = z.copy()
+    z_ext = scipy.ndimage.gaussian_filter(z_ext, sigma=2, mode = 'nearest')
+    z_result[index] = z_ext[index]
+    return np.concatenate((xy,z_result.reshape(-1,1)),axis=1)
 
 ## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
            # maximum of the possible angle for the surface, here between the surface and the horizontal plane
@@ -56,14 +100,19 @@ def create_surface_extended(surface_filtered, limits, resolution):
     
     Xmesh, Ymesh = np.meshgrid(np.arange(round(limits[0], 1), round(limits[1], 1), resolution), np.arange(round(limits[2], 1), round(limits[3], 1), resolution))
 
-    Zmesh = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='cubic')
-    Zmesh[np.isnan(Zmesh)] = 0
+    Zmesh = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='cubic',rescale=True)
+
+    #Zmesh[np.isnan(Zmesh)] = 0
     Zmesh_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], (Xmesh, Ymesh), method='nearest')
-    index = np.isclose(Zmesh, 0, 1e-15)
+    #index = np.isclose(Zmesh, 0, 1e-15)
+    index = np.isnan(Zmesh)
     Zresult = Zmesh.copy()
+
+    Zmesh_ext = scipy.ndimage.gaussian_filter(Zmesh_ext, sigma=5)
+
     Zresult[index] = Zmesh_ext[index]
     
-    Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=7)
+    #Zresult = scipy.ndimage.gaussian_filter(Zresult, sigma=2)
     
     
     return Xmesh, Ymesh, Zresult
@@ -245,6 +294,7 @@ def split_triangle_4(triangle: 'np.ndarray'):
 
 
 def upscale_stl(stl_data: 'np.ndarray', iterations = 1):
+    stl_upscaled = stl_data
     for j in range(iterations):
         print(f'Upscaling -> {(100/iterations)*j:.{1}f}%')
         stl_upscaled = np.empty((4*len(stl_data[:,0]),12))
