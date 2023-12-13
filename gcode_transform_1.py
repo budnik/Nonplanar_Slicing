@@ -26,7 +26,8 @@ class PrintInfo():
 # Output:       Transformed stl with a planar surface, except the nondetected surface points
 def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]', transform_info):
     
-    NormHeight = np.mean(surface_array[:,[5,8,11]])
+    NormHeight = np.mean(surface_array)
+    print(NormHeight)
     Layerheight = transform_info.layerheight
     FullBottomHeight = transform_info.fullbottomheight
     FullTopHeight = transform_info.fulltopheight
