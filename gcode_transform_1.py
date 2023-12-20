@@ -23,20 +23,25 @@ class PrintInfo():
 #               surface_array   = Mesh of the interpolated z Values
 #               limits          = np.array with the values [xmin, xmax, ymin, ymax]
 #               transform_info  = Class Object from Class PrintInfo()
-# Output: 
+# Output:       Transformed stl with a planar surface, except the nondetected surface points
 def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]', transform_info):
     
-    NormHeight = np.mean(surface_array[:,[5,8,11]])
+    NormHeight = np.mean(surface_array)
+    print(NormHeight)
     Layerheight = transform_info.layerheight
     FullBottomHeight = transform_info.fullbottomheight
     FullTopHeight = transform_info.fulltopheight
     resolution = transform_info.resolution
     
     Output_array = np.zeros((stl.shape))
+    # Copy the normalvector to the output array
     Output_array[:, :3] = stl[:, :3]
     for k in range(0,3):
+        # copy the x values of the given stl
         Output_array[:,3*k+3] = stl[:,3*k+3]
+        # copy the y values into the output stl
         Output_array[:,3*k+4] = stl[:,3*k+4]
+        
         Z_Surface = surface_array[np.round((stl[:,3*k+4] - limits[2])*(1/resolution)).astype(int), np.round((stl[:,3*k+3] - limits[0])*(1/resolution)).astype(int)]
         Z_STL = stl[:,3*k+5]
         deltaZ = Z_Surface - Z_STL
@@ -49,7 +54,7 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
         
         Output_array[if1, 3*k+5] = NormHeight - deltaZ[if1]
         Output_array[if2, 3*k+5] = (1 - (deltaZ[if2] - FullTopHeight) / (Z_Surface[if2] - FullTopHeight)) * (NormHeight - FullTopHeight)
-        Output_array[if3, 3*k+5] = Z_STL[if3]
+        Output_array[if3, 3*k+5] = Z_STL[if3]      
         
         index_negativ = Output_array[:,3*k+5] < 0
         Output_array[index_negativ,3*k+5] = 0
@@ -100,14 +105,13 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     
     x_offset = 0
     y_offset = 0
-    
+    # creates an Offset depending of the printer
     if printer == "MK3":
         x_offset = 125
         y_offset = 105
 
     length = 0
     z_ironing = 0
-    ironing = 0
     corr_ironing = 0.05
     
     y_min = limits[2]
@@ -116,7 +120,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     # Calculate the maximal layer number
     z_heights = orig_gcode["Instruction"][np.char.startswith(orig_gcode["Instruction"], ";Z:")]
     z_max = float(max(np.char.replace(z_heights, ";Z:", "")) ) 
-    
+    # calculate the final layer numbers
     maxlayernum = np.round((z_max / layerheight),0).astype(int)
     
     numline = orig_gcode.shape[0]
@@ -128,12 +132,12 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     for i in range(0, numline):         # Loop over every Line in the original GCode
         
         #Overview how long it will take :)
-        teiler = np.round((numline / 4),0)
-        mod_i = i % teiler
+        divider = np.round((numline / 4),0)
+        mod_i = i % divider
         if mod_i == 0:
-            procent = np.round(i / numline * 100, 0)
+            percent = np.round(i / numline * 100, 0)
             
-            print("Progress: ", procent, "%")
+            print("Progress: ", percent, "%")
             
         if i == numline:
             print("Progress: 100.0%")
@@ -145,7 +149,6 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
             
         if z_raw_instruction == ";TYPE:Ironing":
             z_ironing = -0.02
-            ironing = 1
         
         if orig_gcode["Instruction"][i] == "G1":
             

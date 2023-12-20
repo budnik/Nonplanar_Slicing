@@ -9,7 +9,7 @@ from mpl_toolkits.mplot3d import Axes3D
 stl_pfad = "test_files/test_pa_outline_fein_2.stl"
 # stl_pfad = "Welle.stl"
 stl_pfad = "test_files/Welle_Radius.stl"
-stl_pfad = "test_files/Sohle.stl"
+#stl_pfad = "test_files/Sohle3.stl"
 
 ini_pfad = "test_files/generic_config_Deltiq2.ini"
 
@@ -32,7 +32,7 @@ config = fr.slicer_config(fr.openINI(ini_pfad))
 printSetting = transform.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
 points_sorted = surface.sort_contour(triangle_array)
 Oberflaeche, limits = surface.create_surface(triangle_array, np.deg2rad(40)) # Winkel
-surface_filtered = surface.offset_contour(points_sorted[:,0], points_sorted[:,1], Oberflaeche, 5.5)
+surface_filtered = surface.offset_contour(points_sorted[:,0], points_sorted[:,1], Oberflaeche, 3.5)
 xmesh, ymesh, zmesh = surface.create_surface_extended(surface_filtered, limits, printSetting.resolution)
 #ax.scatter(surface_filtered[:,0], surface_filtered[:,1], 0)
 #plt.show()
