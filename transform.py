@@ -4,6 +4,7 @@ import os
 import surface as sf
 from filereader import gcode_dtype
 import filereader as fr
+import plotly.express as px
 
 
 # Calculates the area of a triangle in 3d-space
@@ -29,9 +30,9 @@ def projectSTL(stl_data: 'np.ndarray', filtered_surface: 'np.ndarray',planarBase
         stl_normals = stl_data[:,:3].copy() #save normals
         stl_data = stl_data[:,3:].copy() #copy into new array
         stl_data = stl_data.reshape(-1,3) #reshape to treat as one vector
-        height_interpolated = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='cubic') #cubic interpolation, generates some NaNs however
+        height_interpolated = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='linear') #cubic interpolation, generates some NaNs however
         height_interpolated_nearest = sf.interpolate_grid(stl_data[:,:2],filtered_surface,method_interpol='nearest') #nearest method to get rid of the NaNs
-        height_interpolated_nearest = scipy.ndimage.gaussian_filter(height_interpolated_nearest, sigma=4)
+        height_interpolated_nearest = scipy.ndimage.median_filter(height_interpolated_nearest, size=4)
         height_interpolated[np.isnan(height_interpolated)] = height_interpolated_nearest[np.isnan(height_interpolated)] #replace all nans from cubic interpolation with nearest value
 
         stl_data[:,2] -= height_interpolated #shift interpolated  data down by some the z height at a certain point
@@ -88,7 +89,7 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
                 x_new = x_old + (x-x_old)/length*i
                 y_new = y_old + (y-y_old)/length*i
                 z_new = z_old + (z-z_old)/length*i
-                if z_new < 0 : z_new = 0
+                if z_new < planarBaseOffset : z_new = planarBaseOffset
                 gcode_file.set_line('G1',x_new,y_new,z_new,e_new,f_new)
     #stopping gcode writer and temporarily save everything to disk
     gcode_file.flush()
@@ -105,6 +106,8 @@ def transformGCODE(gcode_data: 'gcode_dtype', planar_base_gcode: 'gcode_dtype', 
     z_lowest = np.min(gcode_temp['Z'][~(np.logical_or(np.isnan(gcode_temp['E']),0 > gcode_temp['E']))])
     print('lowest z = ', z_lowest)
     gcode_temp['Z'] = gcode_temp['Z'] - z_lowest + planarBaseOffset
+    idxlow = gcode_temp['Z'] < planarBaseOffset
+    gcode_temp['Z'][idxlow] = planarBaseOffset
     
     #create an array that is true after the comment ;TYPE=Ironing occured
     ironing = (gcode_temp['Instruction'] == ';TYPE:Ironing')
