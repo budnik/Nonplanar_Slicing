@@ -40,7 +40,7 @@ if __name__ == "__main__":
     planar_base_gcode, prusa_generated_config_planar = fr.openGCODE_keepcoms('output.gcode')
     base_layer_gcode = fr.readBaseLayers(planar_base_gcode,numPlanarBaseLayers)
 
-    transformed_stl = tf.projectSTL(stl_data=upscaled_stl,filtered_surface=filtered_surface,planarBaseOffset=0.0,method='interpolate')
+    transformed_stl = tf.projectSTL(stl_data=upscaled_stl,filtered_surface=filtered_surface,planarBaseOffset=0.0,method='mirror')
     temp_stl_path = fr.writeSTL(transformed_stl)
 
     ps.repairSTL(temp_stl_path)
