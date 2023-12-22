@@ -91,6 +91,6 @@ Samuel Maissen  - maisssam@students.zhaw.ch
 
 Severin Zürcher - zuercse1@students.zhaw.ch
 
-Project Link: [https://github.zhaw.ch/zuercse1/PA23_wuem_346_Nonplanar](https://github.com/zuercse1/PA23_wuem_346_Nonplanar)
+Project Link: [https://github.zhaw.ch/zuercse1/PA23_wuem_346_Nonplanar/tree/main](https://github.zhaw.ch/zuercse1/PA23_wuem_346_Nonplanar/tree/main)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
