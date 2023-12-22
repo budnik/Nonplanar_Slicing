@@ -1,13 +1,17 @@
 # This file creates a Mesh for the top Surface of the stl File
 from scipy.interpolate import griddata
 import numpy as np
-from numpy import linalg
-import matplotlib.pyplot as plt
 import scipy.ndimage
 from scipy.spatial import distance
 from shapely.geometry import Polygon, Point
-import plotly.graph_objects as go
 import shapely
+
+
+## Input:   stl_triangles   = Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
+
+## Use:     
+
+## Output:  
 
 def detectSortOutline(stl_triangles: 'np.ndarray[np.float]'):
     #stl_triangles[:,[5,8,11]] = 0
@@ -101,7 +105,7 @@ def create_surface(stl_triangles, max_angle):
 ## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
            # maximum of the possible angle for the surface, here between the surface and the horizontal plane
 
-## Use:     Calculates the angle between every normalvector and the horizontal plane and extrapolates the nearest point of the surface (extrapolate)
+## Use:     Calculates the angle between every normalvector and the horizontal plane and extrapolates the nearest point of the surface (extrapolate) and gauss filter the surface
 
 ## Output:  gives back 3 Columnvectors: 2 coordinates with the corresponding z value
 
@@ -149,7 +153,7 @@ def create_surface_extended_case1(surface_filtered, limits, resolution):
 
 ## Input:  points_to_interpolate       -> give the wanted interpolated Points in an [n,2] numpy Array
 #          reference_points            -> the given datapoints of the Surface [n, (x,y,z)]
-#          Method to interpolate       -> {�linear�, �nearest�, �cubic�}
+#          Method to interpolate       -> {"linear", "nearest", "cubic"}
 
 ## Use:    Interpolation of the given Points of the Surface with finite Points
 
@@ -166,7 +170,7 @@ def interpolate_grid(points_to_interpolate, reference_points, method_interpol = 
 
 ## Use:     once calculation of the gradient for extrusion compensation
 
-## Output:  
+## Output:  gradient mesh from the surface
     
     
 def create_gradient(surface_data, limits=0):
@@ -185,7 +189,7 @@ def create_gradient(surface_data, limits=0):
    
     Xmesh, Ymesh = np.meshgrid(np.arange(np.round(x_min, 1), np.round(x_max, 1), 0.5), np.arange(np.round(y_min, 1), np.round(y_max, 1), 0.5))
 
-    # Verwende griddata f�r die Interpolation
+    # Verwende griddata fuer die Interpolation
     Zmesh = griddata((surface_data[:,0], surface_data[:,1]), surface_data[:,2], (Xmesh, Ymesh), method='cubic')
 
     # Berechne die Gradienten
@@ -230,7 +234,11 @@ def create_surface_array(surface_data, resolution, limits=0):
     
     return Zmesh
 
+## Input:   Triangle_array = STL Triangles in shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
 
+## Use:     Extracts the contour of the lowest layer (Baseplate layer) and sort the contour according to their euclidian distance
+
+## Output:  Array of sorted points
  
 def sort_contour(triangle_array):
     
@@ -251,8 +259,6 @@ def sort_contour(triangle_array):
     uniq = uniq[:len(uniq)//2]
     contour_unsorted = np.concatenate((uniq[:, [0,1]], uniq[:,[2,3]]), axis=0)
         
-        
-        
     points = np.column_stack((contour_unsorted[:,0], contour_unsorted[:,1]))
     dist_matrix = distance.cdist(points, points, 'euclidean')
     
@@ -272,6 +278,14 @@ def sort_contour(triangle_array):
     
     return sorted_points
 
+## Input:   outline_x = Outline of the sorted baselayer (only x coordinates)
+#           outline_y = Outline of the sorted baselayer (only y coordinates)
+#           surface   = Surface Array from create_surface() function
+#           offset_distance = Offset from the outline
+
+## Use:     Creates an Offset inwards from the sorted outline (from the baselayer) and deletes all points from the surface outside that area
+
+## Output:  Surface points withing the defined section (offset distance from the outline)
 
 def offset_contour(outline_x, outline_y, surface, offset_distance):
 
@@ -295,13 +309,6 @@ def offset_contour(outline_x, outline_y, surface, offset_distance):
     return filtered_points
 
 
-
-
-
-
-
-
-
 ## Input:   Numpy array  = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3] 
 
 ## Use:     Splits a single triangle into 4 smaller triangles
@@ -320,7 +327,12 @@ def split_triangle_4(triangle: 'np.ndarray'):
     triangles=triangles.reshape(-1,12)
     return triangles
 
+## Input:   stl_data    = STL Triangles in shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
+#           iterations  = number of dividing every triangle in 4 smaller
 
+## Use:     Scales the resolution up from an STL
+
+## Output:  upscaled STL with the Shape [NUMBER_UPSCALED_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
 def upscale_stl(stl_data: 'np.ndarray', iterations = 1):
     stl_upscaled = stl_data
     for j in range(iterations):

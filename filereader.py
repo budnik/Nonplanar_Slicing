@@ -396,7 +396,7 @@ def insertBaseLayers(planar_gcode,planar_base_gcode):
     return np.concatenate((pre_first_layer,planar_base_gcode,post_first_layer))
 
 
-# Testing Code:
+# Testing Code: -> directly run filereader.py for testing
 if __name__ == "__main__":     
     path_stl_ascii = 'Scheibe.stl' #Filename definition
     path_gcode = 'test_files/Scheibe.gcode' #filename definition
