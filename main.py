@@ -8,7 +8,6 @@ import transform_method_2 as tm2
 import os
 import platform
 import dearpygui.dearpygui as dpg       # install with pip: "pip install dearpygui"                 -> Version 1.10.0
-import matplotlib.pyplot as plt         # install with pip: "python -m pip install -U matplotlib"   -> Version 3.7.2
 import numpy as np                      # install with pip: "pip install numpy"                     -> Version 1.24.3
 import scipy                            # install with pip: "python -m pip install scipy"           -> Version 1.11.1
 import shapely                          # install with pip: "pip install shapely"                   -> Version 2.0.1
@@ -38,10 +37,13 @@ if __name__ == "__main__":
     stl_path_dir_default = stl_dir
     config_path_dir_default = config_dir
 
+    # Parameter definition
     max_angle_default = 40          # default value for visualisation
     outline_offset_default = 3.5    # in mm
+    resolution_zmesh = 0.05
     outline_active = False          # default GUI visibility for the offset
     default_planar_baselayer = 2
+    method2_upscale_iteration = 2
     transform_method = 'mirror'
 
 
@@ -136,7 +138,7 @@ if __name__ == "__main__":
                 # Get the Config as String to determine the layerheight etc.
                 config = fr.slicer_config(fr.openINI(dpg.get_value("config_text")))
                 # Define PrintInfo for Layerheight infos etc.
-                printSetting = tm1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = 0.05)
+                printSetting = tm1.PrintInfo(config,FullBottomLayers=4, FullTopLayers=4, resolution_zmesh = resolution_zmesh)
                 # set new path for the resulting .gcode
                 printSetting.path = dpg.get_value("stl_text").rsplit('.')[0] + '.gcode'
                 # Calculate the Surface Array
@@ -183,11 +185,11 @@ if __name__ == "__main__":
                 # Read STL to the orig_stl Array with Shape [NR_OF_TRIANGLES, 12]
                 orig_stl = fr.openSTL(dpg.get_value("stl_text"))
                 # Upscale the STL for higher accuracy of the Nodes from the STL
-                upscaled_stl = sf.upscale_stl(orig_stl, 2)
+                upscaled_stl = sf.upscale_stl(orig_stl, method2_upscale_iteration)
                 # Calculate the Surface
                 surface, limits = sf.create_surface(upscaled_stl, max_angle)
                 #Create the extended Surface with 'nearest' extrapolated mesh points
-                xmesh, ymesh, zmesh = sf.create_surface_extended(surface, limits, 0.05)
+                xmesh, ymesh, zmesh = sf.create_surface_extended(surface, limits, resolution_zmesh)
                 # Create an Array with the xmesh, ymesh and zmesh values
                 filtered_surface = np.concatenate(([xmesh.flatten()],[ymesh.flatten()],[zmesh.flatten()]),axis=0).T
                 # Read the GCode Config from the Config File
