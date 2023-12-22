@@ -78,6 +78,7 @@ Now you have your Non-planar GCode for printing.
 ### Tipps
 * Check the maximal possible printing angle to avoid crashing your Z-Probe of Fan with the print
 * It works stable with STL parts that have a flat baselayer and vertical sides.
+* If the part has edges in the middle of the part, try reexporting the part from CAD or setting the origin of the STL at the Center of the part
 * If method 2 takes too long, decrease the resolution of the z-Mesh
 * If method 2 produces errors at the edges use transformation method "mirror" for transformation or increase resolution
 * For method 2 transformation method "mirror" is more robust, than "interpolate"
