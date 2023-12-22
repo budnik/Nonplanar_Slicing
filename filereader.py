@@ -4,7 +4,6 @@ import struct
 import time
 import numpy as np
 import mmap
-import os
 from enum import Enum
 
 gcode_dtype = np.dtype([('Instruction','<U200'),('X','f8'),('Y','f8'),('Z','f8'),('E','f8'),('F','f8')])

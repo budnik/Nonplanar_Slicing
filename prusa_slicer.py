@@ -1,6 +1,4 @@
 import subprocess
-import os
-
 
 # Slices a given STL-File planar in prusa slicer
 # ----------------------------------------

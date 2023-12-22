@@ -4,7 +4,6 @@ import numpy as np
 import scipy.ndimage
 from scipy.spatial import distance
 from shapely.geometry import Polygon, Point
-import shapely
 
 
 ## Input:   stl_triangles   = Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
@@ -39,33 +38,6 @@ def detectSortOutline(stl_triangles: 'np.ndarray[np.float]'):
             uniq[idr2[0],:] = np.nan
     return outline
 
-## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
-#           Maximum of the possible angle for the surface, here between the surface and the horizontal plane
-#           Resolution of the meshgrid
-#           Sorted outline from the "detectSortOutline()" function
-
-## Use:     Creates the surface
-
-## Output:  surface_filtered = 3 Columnvectors: 2 coordinates with the corresponding z value
-#           limits = np.array with the values [xmin, xmax, ymin, ymax]
-
-
-def create_surface_without_outline(stl_triangles, max_angle, resolution, outline):
-    surface_filtered, limits = create_surface(stl_triangles, max_angle)
-    Xmesh, Ymesh = np.meshgrid(np.arange(round(limits[0], 1), round(limits[1], 1), resolution), np.arange(round(limits[2], 1), round(limits[3], 1), resolution))
-    xy = np.concatenate(([Xmesh.flatten()],[Ymesh.flatten()]),axis=0).T
-    z = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], xy, method='cubic',rescale=True)
-    outline = shapely.Polygon(outline)
-    outline = outline.buffer(-0.2,join_style=2)
-    Points = shapely.points(xy)
-    isinside = shapely.within(Points,outline)
-    z[~isinside] = np.nan
-    z_ext = griddata((surface_filtered[:,0], surface_filtered[:,1]), surface_filtered[:,2], xy, method='nearest')
-    index = np.isnan(z)
-    z_result = z.copy()
-    z_ext = scipy.ndimage.gaussian_filter(z_ext, sigma=2, mode = 'nearest')
-    z_result[index] = z_ext[index]
-    return np.concatenate((xy,z_result.reshape(-1,1)),axis=1)
 
 ## Input:   Numpy array of shape [NUMBER_TRIANGLES,12] with [_,:] = [x_normal,y_normal,z_normal,x1,y1,z1,x2,y2,z2,x3,y3,z3]
            # maximum of the possible angle for the surface, here between the surface and the horizontal plane
