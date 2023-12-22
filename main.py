@@ -15,7 +15,7 @@ import shapely                          # install with pip: "pip install shapely
 if __name__ == "__main__":
 
     # Setup Default Paths if nothing is marked
-    stl_default = "test_files/Welle_Phase.stl"
+    stl_default = "test_files/Keil.stl"
     config_default = "test_files/generic_config_Deltiq2.ini"
 
     # Create the window with its Context
@@ -37,13 +37,13 @@ if __name__ == "__main__":
     stl_path_dir_default = stl_dir
     config_path_dir_default = config_dir
 
-    # Parameter definition
+    # default Parameter definition
     max_angle_default = 40          # default value for visualisation
     outline_offset_default = 3.5    # in mm
     resolution_zmesh = 0.05
     outline_active = False          # default GUI visibility for the offset
     default_planar_baselayer = 2
-    method2_upscale_iteration = 2
+    method2_upscale_iteration = 0
     transform_method = 'mirror'
 
 
