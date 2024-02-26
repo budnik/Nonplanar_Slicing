@@ -90,7 +90,7 @@ Now you have your Non-planar GCode for printing.
 <!-- CONTACT -->
 ## Contact
 
-Samuel Maissen  - maisssam@students.zhaw.ch
+Samuel Maissen  - samuel.j.maissen@gmail.com
 
 Severin Zürcher - zuercse1@students.zhaw.ch
 
