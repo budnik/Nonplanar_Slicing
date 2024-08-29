@@ -96,6 +96,6 @@ Severin Zürcher - zuercher.severin@bluewin.ch
 
 Michael Wüthrich - wuem@zhaw.ch
 
-Project Link: [https://github.zhaw.ch/wuem/Nonplanar-slicing](https://github.zhaw.ch/wuem/Nonplanar-slicing/tree/main)
+Project Link: [https://github.com/RotBotSlicer/Nonplanar_Slicing](https://github.com/RotBotSlicer/Nonplanar_Slicing/tree/main)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
