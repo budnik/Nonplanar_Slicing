@@ -1,7 +1,6 @@
 import numpy as np
 from dataclasses import dataclass
 
-
 class PrintInfo():
     def __init__(self, config, FullBottomLayers, FullTopLayers, resolution_zmesh = 0.02):
         
@@ -13,6 +12,7 @@ class PrintInfo():
         self.numfulllayer = FullBottomLayers + FullTopLayers    
         self.resolution = resolution_zmesh
         self.ironing = bool(config.get_config_param('ironing'))
+        self.printer = config.get_config_param('printer_model')
         self.path = ''
 
 
@@ -24,6 +24,7 @@ class PrintInfo():
 #               transform_info  = Class Object from Class PrintInfo()
 # Output:       Transformed stl with a planar surface, except the nondetected surface points
 def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]', limits: 'np.ndarray[np.float]', transform_info):
+
     
     NormHeight = np.mean(surface_array)
     print(NormHeight)
@@ -31,6 +32,7 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
     FullBottomHeight = transform_info.fullbottomheight
     FullTopHeight = transform_info.fulltopheight
     resolution = transform_info.resolution
+    printer = transform_info.printer
     
     Output_array = np.zeros((stl.shape))
     # Copy the normalvector to the output array
@@ -77,13 +79,16 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
 # Output: File in the explorer with the transformed Gcode
 
 
-def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]', zmesh: 'np.ndarray[np.float]', file_info, limits: 'np.ndarray[np.float]' = 0, printer="DeltiQ2",config_string:'str'=False):
+def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]', zmesh: 'np.ndarray[np.float]', file_info, limits: 'np.ndarray[np.float]' = 0, config_string:'str'=False):
     
     fullbottomlayer = file_info.fullbottomlayers
     fulltoplayer = file_info.fulltoplayers
     layerheight = file_info.layerheight            # in mm
     resolution = file_info.resolution              # in mm
     subg_resolution = 1                            # in mm
+    printer = file_info.printer
+
+    print("Printer ", printer)
     
     file = open(file_info.path, 'w')
     
@@ -109,6 +114,15 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     if printer == "MK3":
         x_offset = 125
         y_offset = 105
+    if printer == "MINI":
+        x_offset = 90
+        y_offset = 90    
+    if printer == "COREONE":
+        x_offset = 125
+        y_offset = 110
+    if printer == "MK4S":
+        x_offset = 125
+        y_offset = 105
 
     length = 0
     z_ironing = 0
@@ -116,6 +130,8 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     
     y_min = limits[2]
     x_min = limits[0]
+
+    z_curr = 0
     
     # Calculate the maximal layer number
     z_heights = orig_gcode["Instruction"][np.char.startswith(orig_gcode["Instruction"], ";Z:")]
@@ -179,7 +195,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                         
                         length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),0)
                                            
-                        # we work here with the standard 1mm resolution für the sub Gcode
+                        # we work here with the standard 1mm resolution fÂ¸r the sub Gcode
                         j = np.linspace(1, length, (length/subg_resolution).astype(int))
                         
                         # calculate all x and y values between the start and end point of the G1 Line
@@ -279,7 +295,8 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                 file.write(add_str  + '\n')
 
         else:       # If the "else" is called, the line should be copied as it is at the current line
-            file.write(orig_gcode["Instruction"][i] + '\n') 
+            file.write(orig_gcode["Instruction"][i] + '\n')
+
     
     print("GCode Transformation finished")
     if config_string != False:
