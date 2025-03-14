@@ -123,6 +123,9 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
     if printer == "MK4S":
         x_offset = 125
         y_offset = 105
+    if printer == "MK4":
+        x_offset = 125
+        y_offset = 105
 
     length = 0
     z_ironing = 0
