@@ -61,7 +61,7 @@ pip install shapely==2.0.1
 <!-- USAGE EXAMPLES -->
 ## Usage
 
-Run main.py to open the GUI. 
+Run main.py (main_Mac.py on Mac computers) to open the GUI. 
 
 Select your .stl file and the .ini config file (directly exported from Prusaslicer -> Ctrl + E)
 
@@ -82,6 +82,7 @@ Now you have your Non-planar GCode for printing.
 * If method 2 takes too long, decrease the resolution of the z-Mesh
 * If method 2 produces errors at the edges use transformation method "mirror" for transformation or increase resolution
 * For method 2 transformation method "mirror" is more robust, than "interpolate"
+* If you use the scripts on a Mac computer make sure to rename the Prusa slicer in the Application folder to: "Original_Prusa_Drivers"
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
