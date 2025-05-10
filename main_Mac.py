@@ -16,7 +16,7 @@ import shapely                          # install with pip: "pip install shapely
 if __name__ == "__main__":
 
     # Setup Default Paths if nothing is marked
-    stl_default = "test_files/Welle_klein.stl"
+    stl_default = "test_files/Keil.stl"
     config_default = "test_files/generic_config_Mini.ini"
 
     # Create the window with its Context
@@ -27,13 +27,12 @@ if __name__ == "__main__":
 
     # if os_current == "Windows":
         # prusaslicer_default_path = "C:\Program Files\Prusa3D\PrusaSlicer"
-        
     # if os_current == "Darwin":
-    prusaslicer_default_path = '/Applications/Original_Prusa_Drivers/PrusaSlicer.app/Contents/MacOS/'
+    prusaslicer_default_path = '/Applications/Original Prusa Drivers/PrusaSlicer.app/Contents/MacOS/'
 
     # Standard comment as path
-    stl_dir = "C:/ "
-    config_dir = "C:/ "
+    stl_dir = "/Users/dmytro/Library/CloudStorage/GoogleDrive-dmitriy.budnik@gmail.com/Інші комп’ютери/Мій MacBook Pro/3d/"
+    config_dir = "/Users/dmytro/Downloads/"
 
     stl_path_dir_default = stl_dir
     config_path_dir_default = config_dir
