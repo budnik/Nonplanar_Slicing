@@ -3,7 +3,6 @@
 # Nonplanar Gcode Transformation
 
 
-<!-- ABOUT THE PROJECT -->
 ## About The Project
 
 
@@ -11,7 +10,7 @@ This project is the main part of the project work from Samuel Maissen and Severi
 
 Our main goal was to implement two different algorithm for producing non-planar GCode from planar slicing Software.
 * Final GCode is created through transforming a .stl part to get a flat surface, slicing this transformed .stl and scale the planar Gcode in relation to the surface from the original part. With this algorithm, you get a GCode with different scaled layer heights throughout the same layer.
-* Final GCode is created through turnig the part upside down, slice the part and pull the GCode to the buildplate, so that the original shape is recreated. 
+* Final GCode is created through turnig the part upside down, slice the part and pull the GCode to the buildplate, so that the original shape is recreated.
 
 Currently the ironing process works but still not perfect
 
@@ -28,7 +27,6 @@ The implementation is completly based on Python 3.11, build with Visual Studio C
 
 
 
-<!-- GETTING STARTED -->
 ## Getting Started
 
 Make sure to have your favourite IDE with Python 3.11 and Prusaslicer 2.7.0 on your machine installed (preferably with Anaconda)
@@ -36,32 +34,41 @@ Make sure to have your favourite IDE with Python 3.11 and Prusaslicer 2.7.0 on y
 
 ### Installation
 
-To run this project you will need to install some python packages:
-1. Numpy for calculation
-```sh
-pip install numpy==1.24.3
-```
-2. Scipy for further calculation
-```sh
-pip install scipy==1.11.1
-```
-3. DearPyGui for visualisation
-```sh
-pip install dearpygui==1.10.0
-```
-4. Shapely for Outline detection
-```sh
-pip install shapely==2.0.1
-  ```
+To set up the project and install dependencies:
+
+1.  **Clone the repository (if you haven't already):**
+    ```sh
+    git clone <your-repository-url>
+    cd <your-repository-name>
+    ```
+
+2.  **Create and activate a Python 3 virtual environment:**
+
+    * On macOS and Linux:
+        ```sh
+        python3 -m venv venv
+        source venv/bin/activate
+        ```
+    * On Windows:
+        ```sh
+        python -m venv venv
+        .\venv\Scripts\activate
+        ```
+    You should see `(venv)` at the beginning of your command prompt, indicating the virtual environment is active.
+
+3.  **Install the required Python packages:**
+    Ensure you have a `requirements.txt` file in the root of your project directory. Then, run the following command to install all necessary dependencies:
+    ```sh
+    pip install -r requirements.txt
+    ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 
-<!-- USAGE EXAMPLES -->
 ## Usage
 
-Run main.py (main_Mac.py on Mac computers) to open the GUI. 
+Run main.py (main_Mac.py on Mac computers) to open the GUI.
 
 Select your .stl file and the .ini config file (directly exported from Prusaslicer -> Ctrl + E)
 
@@ -88,7 +95,6 @@ Now you have your Non-planar GCode for printing.
 
 
 
-<!-- CONTACT -->
 ## Contact
 
 Samuel Maissen  - samuel.j.maissen@gmail.com
