@@ -43,7 +43,11 @@ def trans_stl(stl: 'np.ndarray[np.float]' , surface_array: 'np.ndarray[np.float]
         # copy the y values into the output stl
         Output_array[:,3*k+4] = stl[:,3*k+4]
         
-        Z_Surface = surface_array[np.round((stl[:,3*k+4] - limits[2])*(1/resolution)).astype(int), np.round((stl[:,3*k+3] - limits[0])*(1/resolution)).astype(int)]
+        row_idx = np.round((stl[:,3*k+4] - limits[2])*(1/resolution)).astype(int)
+        col_idx = np.round((stl[:,3*k+3] - limits[0])*(1/resolution)).astype(int)
+        row_idx = np.clip(row_idx, 0, surface_array.shape[0] - 1)
+        col_idx = np.clip(col_idx, 0, surface_array.shape[1] - 1)
+        Z_Surface = surface_array[row_idx, col_idx]
         Z_STL = stl[:,3*k+5]
         deltaZ = Z_Surface - Z_STL
         index_z_higher_fullbottom = Z_STL > FullBottomHeight
@@ -198,7 +202,7 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                         
                         length = np.round((np.sqrt((x-x_old)**2 + (y-y_old)**2 + 1)),0)
                                            
-                        # we work here with the standard 1mm resolution f¸r the sub Gcode
+                        # we work here with the standard 1mm resolution f¸r die sub Gcode
                         j = np.linspace(1, length, (length/subg_resolution).astype(int))
                         
                         # calculate all x and y values between the start and end point of the G1 Line
@@ -209,7 +213,11 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                         actual_g_line[:, 0] = x_new[:]
                         actual_g_line[:, 1] = y_new[:]
                         
-                        interpol_z = zmesh[np.round((actual_g_line[:,1] - y_min - y_offset)*(1/resolution)).astype(int), np.round((actual_g_line[:,0] - x_min - x_offset)*(1/resolution)).astype(int)]
+                        row_idx = np.round((actual_g_line[:,1] - y_min - y_offset)*(1/resolution)).astype(int)
+                        col_idx = np.round((actual_g_line[:,0] - x_min - x_offset)*(1/resolution)).astype(int)
+                        row_idx = np.clip(row_idx, 0, zmesh.shape[0] - 1)
+                        col_idx = np.clip(col_idx, 0, zmesh.shape[1] - 1)
+                        interpol_z = zmesh[row_idx, col_idx]
 
                         if (np.isnan(e) == False): # if its a normal print line
                             
@@ -233,7 +241,11 @@ def trans_gcode(orig_gcode: 'np.ndarray[np.float]', gradz: 'np.ndarray[np.float]
                                 #     corr_factor = 1
                                 # else:
                                 #     corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
-                                corr_factor =  (1-(gradz[np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1, np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1]**1.5))
+                                y_idx = np.round((y_new[0]-y_min-y_offset)*2, 0).astype(int)-1
+                                x_idx = np.round((x_new[0]-x_min-x_offset)*2, 0).astype(int)-1
+                                y_idx = np.clip(y_idx, 0, gradz.shape[0] - 1)
+                                x_idx = np.clip(x_idx, 0, gradz.shape[1] - 1)
+                                corr_factor = 1 - (gradz[y_idx, x_idx] ** 1.5)
                                 actual_g_line[:,3] = actual_g_line[:,3] * corr_factor
                                                             
                             
